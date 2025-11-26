@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Class Management</title>
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Admin Dashboard</h1>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </header>
+        
+        <nav class="tabs">
+            <button class="tab-btn active" onclick="showTab('dashboard')">Dashboard</button>
+            <button class="tab-btn" onclick="showTab('students')">Students</button>
+            <button class="tab-btn" onclick="showTab('classes')">Classes</button>
+            <button class="tab-btn" onclick="showTab('enrollments')">Enrollments</button>
+            <button class="tab-btn" onclick="showTab('qr-scanner')">QR Scanner</button>
+            <button class="tab-btn" onclick="showTab('attendance')">Attendance</button>
+            <button class="tab-btn" onclick="showTab('payments')">Payments</button>
+            <button class="tab-btn" onclick="showTab('unpaid')">Unpaid</button>
+            <button class="tab-btn" onclick="showTab('finance')">Finance</button>
+            <button class="tab-btn" onclick="showTab('exam-admin')">Exam Admin</button>
+        </nav>
+        
+        <main>
+            <!-- Dashboard Tab -->
+            <div id="dashboard" class="tab-content active">
+                <h2>Dashboard</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3 id="totalStudents">-</h3>
+                        <p>Total Students</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="totalClasses">-</h3>
+                        <p>Total Classes</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="todayAttendance">-</h3>
+                        <p>Today's Attendance</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="monthRevenue">-</h3>
+                        <p>This Month Revenue</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Students Tab -->
+            <div id="students" class="tab-content">
+                <div class="section-header">
+                    <h2>Students</h2>
+                    <button class="btn-primary" onclick="showAddStudentForm()">Add Student</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Phone</th>
+                                <th>Grade</th>
+                                <th>QR Token</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="studentsTable"></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Classes Tab -->
+            <div id="classes" class="tab-content">
+                <div class="section-header">
+                    <h2>Classes</h2>
+                    <button class="btn-primary" onclick="showAddClassForm()">Add Class</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Monthly Fee</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="classesTable"></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Enrollments Tab -->
+            <div id="enrollments" class="tab-content">
+                <h2>Enrollments</h2>
+                <div class="form-group">
+                    <label>Select Class</label>
+                    <select id="enrollClassSelect" onchange="loadClassStudents()">
+                        <option value="">-- Select Class --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Select Student</label>
+                    <select id="enrollStudentSelect">
+                        <option value="">-- Select Student --</option>
+                    </select>
+                </div>
+                <button class="btn-primary" onclick="enrollStudent()">Enroll Student</button>
+                <div class="table-container" style="margin-top: 20px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Phone</th>
+                                <th>Grade</th>
+                            </tr>
+                        </thead>
+                        <tbody id="enrolledStudentsTable"></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- QR Scanner Tab -->
+            <div id="qr-scanner" class="tab-content">
+                <h2>QR Code Scanner</h2>
+                <div id="qr-reader" style="width: 100%; max-width: 500px; margin: 20px auto;"></div>
+                <div id="scan-result" style="margin-top: 20px; padding: 20px; background: #1e293b; border-radius: 8px;"></div>
+            </div>
+            
+            <!-- Attendance Tab -->
+            <div id="attendance" class="tab-content">
+                <h2>Attendance</h2>
+                <div class="form-group">
+                    <label>Select Class</label>
+                    <select id="attendanceClassSelect" onchange="loadAttendance()">
+                        <option value="">-- Select Class --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Select Date</label>
+                    <input type="date" id="attendanceDate" value="" onchange="loadAttendance()">
+                </div>
+                <div class="table-container" style="margin-top: 20px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Phone</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="attendanceTable"></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Payments Tab -->
+            <div id="payments" class="tab-content">
+                <h2>Payments</h2>
+                <div class="form-card">
+                    <h3>Record Payment</h3>
+                    <div class="form-group">
+                        <label>Student</label>
+                        <select id="paymentStudentSelect">
+                            <option value="">-- Select Student --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Class</label>
+                        <select id="paymentClassSelect">
+                            <option value="">-- Select Class --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Month (YYYY-MM)</label>
+                        <input type="text" id="paymentMonth" placeholder="2024-12">
+                    </div>
+                    <div class="form-group">
+                        <label>Amount</label>
+                        <input type="number" id="paymentAmount" placeholder="2000">
+                    </div>
+                    <div class="form-group">
+                        <label>Method</label>
+                        <select id="paymentMethod">
+                            <option value="cash">Cash</option>
+                            <option value="bank">Bank</option>
+                            <option value="online">Online</option>
+                        </select>
+                    </div>
+                    <button class="btn-primary" onclick="recordPayment()">Record Payment</button>
+                </div>
+            </div>
+            
+            <!-- Unpaid Tab -->
+            <div id="unpaid" class="tab-content">
+                <h2>Unpaid Students</h2>
+                <div class="form-group">
+                    <label>Select Month (YYYY-MM)</label>
+                    <input type="text" id="unpaidMonth" placeholder="2024-12" value="" onchange="loadUnpaid()">
+                </div>
+                <div class="table-container" style="margin-top: 20px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Phone</th>
+                                <th>Class</th>
+                                <th>Monthly Fee</th>
+                            </tr>
+                        </thead>
+                        <tbody id="unpaidTable"></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Finance Tab -->
+            <div id="finance" class="tab-content">
+                <h2>Finance Report</h2>
+                <div class="form-group">
+                    <label>Select Month (YYYY-MM)</label>
+                    <input type="text" id="financeMonth" placeholder="2024-12" value="" onchange="loadFinance()">
+                </div>
+                <div class="table-container" style="margin-top: 20px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Class</th>
+                                <th>Payment Count</th>
+                                <th>Total Revenue</th>
+                            </tr>
+                        </thead>
+                        <tbody id="financeTable"></tbody>
+                    </table>
+                </div>
+                <div style="margin-top: 20px; padding: 15px; background: #1e293b; border-radius: 8px;">
+                    <h3>Grand Total: <span id="grandTotal">0</span> LKR</h3>
+                </div>
+            </div>
+            
+            <!-- Exam Admin Tab -->
+            <div id="exam-admin" class="tab-content">
+                <h2>Exam Seat Management</h2>
+                <div id="examSlotsList"></div>
+                <div id="examLayoutContainer" style="margin-top: 30px;"></div>
+            </div>
+        </main>
+        
+        <footer>Created by Pulindu Pansilu</footer>
+    </div>
+    
+    <!-- Modals -->
+    <div id="studentModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('studentModal')">&times;</span>
+            <h2 id="studentModalTitle">Add Student</h2>
+            <form id="studentForm" onsubmit="saveStudent(event)">
+                <input type="hidden" id="studentId">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="studentName" required>
+                </div>
+                <div class="form-group">
+                    <label>Phone</label>
+                    <input type="text" id="studentPhone" required>
+                </div>
+                <div class="form-group">
+                    <label>Grade</label>
+                    <select id="studentGrade" required>
+                        <option value="Grade 6">Grade 6</option>
+                        <option value="Grade 7">Grade 7</option>
+                        <option value="Grade 8">Grade 8</option>
+                        <option value="O/L">O/L</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-primary">Save</button>
+            </form>
+        </div>
+    </div>
+    
+    <div id="classModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('classModal')">&times;</span>
+            <h2 id="classModalTitle">Add Class</h2>
+            <form id="classForm" onsubmit="saveClass(event)">
+                <input type="hidden" id="classId">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="className" required>
+                </div>
+                <div class="form-group">
+                    <label>Monthly Fee</label>
+                    <input type="number" id="classFee" required>
+                </div>
+                <button type="submit" class="btn-primary">Save</button>
+            </form>
+        </div>
+    </div>
+    
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="admin.js"></script>
+</body>
+</html>
