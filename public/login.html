@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Class Management System - Login</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #020617;
+            color: #e2e8f0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .login-container {
+            background: #0f172a;
+            border-radius: 12px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #60a5fa;
+            font-size: 28px;
+        }
+        
+        .login-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .login-btn {
+            padding: 15px 30px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .login-btn:hover {
+            background: #1d4ed8;
+        }
+        
+        .login-form {
+            display: none;
+            margin-top: 30px;
+        }
+        
+        .login-form.active {
+            display: block;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #cbd5e1;
+            font-weight: 500;
+        }
+        
+        input {
+            width: 100%;
+            padding: 12px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            color: #e2e8f0;
+            font-size: 14px;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+        
+        .submit-btn {
+            width: 100%;
+            padding: 12px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        .submit-btn:hover {
+            background: #1d4ed8;
+        }
+        
+        .back-btn {
+            background: #475569;
+            margin-bottom: 15px;
+        }
+        
+        .back-btn:hover {
+            background: #64748b;
+        }
+        
+        .error {
+            color: #f87171;
+            margin-top: 10px;
+            text-align: center;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #64748b;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h1>Class Management System</h1>
+        
+        <div id="loginButtons" class="login-buttons">
+            <button class="login-btn" onclick="showLoginForm('admin')">Administrator Login</button>
+            <button class="login-btn" onclick="showLoginForm('student')">Student Login</button>
+        </div>
+        
+        <div id="adminForm" class="login-form">
+            <button class="login-btn back-btn" onclick="showButtons()">← Back</button>
+            <h2 style="margin-bottom: 20px; text-align: center;">Admin Login</h2>
+            <form onsubmit="login(event, 'admin')">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" name="password" required>
+                </div>
+                <button type="submit" class="submit-btn">Login</button>
+                <div id="adminError" class="error"></div>
+            </form>
+        </div>
+        
+        <div id="studentForm" class="login-form">
+            <button class="login-btn back-btn" onclick="showButtons()">← Back</button>
+            <h2 style="margin-bottom: 20px; text-align: center;">Student Login</h2>
+            <form onsubmit="login(event, 'student')">
+                <div class="form-group">
+                    <label>Username (Phone Number)</label>
+                    <input type="text" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" name="password" required>
+                </div>
+                <button type="submit" class="submit-btn">Login</button>
+                <div id="studentError" class="error"></div>
+            </form>
+        </div>
+        
+        <footer>Created by Pulindu Pansilu</footer>
+    </div>
+    
+    <script>
+        function showLoginForm(role) {
+            document.getElementById('loginButtons').style.display = 'none';
+            if (role === 'admin') {
+                document.getElementById('adminForm').classList.add('active');
+            } else {
+                document.getElementById('studentForm').classList.add('active');
+            }
+        }
+        
+        function showButtons() {
+            document.getElementById('adminForm').classList.remove('active');
+            document.getElementById('studentForm').classList.remove('active');
+            document.getElementById('loginButtons').style.display = 'flex';
+            document.getElementById('adminError').textContent = '';
+            document.getElementById('studentError').textContent = '';
+        }
+        
+        async function login(event, role) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            const username = formData.get('username');
+            const password = formData.get('password');
+            
+            const errorDiv = role === 'admin' ? document.getElementById('adminError') : document.getElementById('studentError');
+            
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password, role })
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok) {
+                    if (role === 'admin') {
+                        window.location.href = '/admin';
+                    } else {
+                        window.location.href = '/student';
+                    }
+                } else {
+                    errorDiv.textContent = data.error || 'Login failed';
+                }
+            } catch (err) {
+                errorDiv.textContent = 'Network error. Please try again.';
+            }
+        }
+    </script>
+</body>
+</html>
