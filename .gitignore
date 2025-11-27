@@ -3,3 +3,4 @@ class_manager.db
 class_manager.db-journal
 .env
 *.log
+qrs/
