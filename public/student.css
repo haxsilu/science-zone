@@ -114,16 +114,66 @@ select:focus {
 
 .seat-layout {
     display: flex;
-    flex-direction: column;
-    gap: 15px;
-    max-width: 800px;
+    flex-wrap: wrap;
+    gap: 60px;
+    justify-content: center;
+    max-width: 1100px;
     margin: 0 auto;
+}
+
+.seat-section {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.seat-section.section-side-column {
+    min-width: 140px;
+    align-items: flex-end;
+}
+
+.seat-section.section-main-block {
+    min-width: 520px;
 }
 
 .seat-row {
     display: flex;
     align-items: center;
     gap: 10px;
+}
+
+.seat-row.label-left .row-label {
+    text-align: right;
+    order: 1;
+    margin-right: 12px;
+}
+
+.seat-row.label-left .seats-group {
+    order: 2;
+}
+
+.seat-row.label-right {
+    justify-content: flex-end;
+}
+
+.seat-row.label-right .row-label {
+    order: 2;
+    text-align: left;
+    margin-left: 12px;
+    margin-right: 0;
+}
+
+.seat-row.label-right .seats-group {
+    order: 1;
+}
+
+.seat-row.section-side-row .row-label {
+    width: auto;
+    min-width: auto;
+    font-size: 16px;
+}
+.seat-row.section-side-row {
+    align-items: flex-start;
 }
 
 .row-label {
@@ -139,6 +189,14 @@ select:focus {
     gap: 8px;
     align-items: center;
     flex: 1;
+}
+
+.seats-group.vertical {
+    flex-direction: column;
+}
+
+.seats-group.vertical .seat {
+    width: 70px;
 }
 
 
@@ -232,6 +290,26 @@ footer {
     
     .seat-layout-wrapper {
         padding: 15px;
+    }
+
+    .seat-layout {
+        flex-direction: column;
+        gap: 30px;
+        align-items: center;
+    }
+    
+    .seat-section.section-side-column,
+    .seat-section.section-main-block {
+        min-width: auto;
+        align-items: center;
+    }
+    
+    .seat-row.label-right {
+        justify-content: flex-start;
+    }
+    
+    .seat-row.label-right .row-label {
+        margin-left: 8px;
     }
     
     .seat {

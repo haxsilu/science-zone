@@ -1,19 +1,40 @@
 // Seat Layout Configuration
 // This file defines the seat layout structure for exam bookings
 
+const baseRows = [
+  // Main block (right-hand side in the diagram)
+  { row: 1, seats: 4, section: 'main', seatFlow: 'row', labelPosition: 'right' },
+  { row: 2, seats: 4, section: 'main', seatFlow: 'row', labelPosition: 'right' },
+  { row: 3, seats: 4, section: 'main', seatFlow: 'row', labelPosition: 'right' },
+  { row: 4, seats: 4, section: 'main', seatFlow: 'row', labelPosition: 'right' },
+  { row: 5, seats: 4, section: 'main', seatFlow: 'row', labelPosition: 'right' },
+  { row: 6, seats: 4, section: 'main', seatFlow: 'row', labelPosition: 'right' },
+  // Side column (left-hand side in the diagram)
+  { row: 7, seats: 4, section: 'side', seatFlow: 'column', labelPosition: 'left' },
+  { row: 8, seats: 4, section: 'side', seatFlow: 'column', labelPosition: 'left' }
+];
+
+const rows = baseRows.sort((a, b) => a.row - b.row);
+
+const visualSections = [
+  {
+    id: 'side-column',
+    layout: 'stack',
+    rows: [7, 8],
+    description: 'Left column for Grade 7 & 8'
+  },
+  {
+    id: 'main-block',
+    layout: 'column',
+    rows: [6, 5, 4, 3, 2, 1],
+    description: 'Main hall block'
+  }
+];
+
 module.exports = {
-  // Define the layout structure
-  // Each row can have a different number of seats
-  // Format: { row: number, seats: number }
-  rows: [
-    { row: 1, seats: 4 },
-    { row: 2, seats: 2 },
-    { row: 3, seats: 2 },
-    { row: 4, seats: 2 },
-    { row: 5, seats: 2 },
-    { row: 6, seats: 2 }
-  ],
-  
+  rows,
+  visualSections,
+
   // Total number of seats (calculated from rows)
   get totalSeats() {
     return this.rows.reduce((sum, r) => sum + r.seats, 0);
