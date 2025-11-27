@@ -57,6 +57,14 @@ async function loadSessionLayout() {
         const container = document.getElementById('seatLayoutContainer');
         
         const bookings = data.bookings;
+        const layout = data.layout || { rows: [
+            { row: 1, seats: 4 },
+            { row: 2, seats: 2 },
+            { row: 3, seats: 2 },
+            { row: 4, seats: 2 },
+            { row: 5, seats: 2 },
+            { row: 6, seats: 2 }
+        ]};
         
         // Find student's own booking
         const ownBooking = currentBooking ? bookings.find(b => b.id === currentBooking.id) : null;
@@ -66,14 +74,14 @@ async function loadSessionLayout() {
         html += '<div class="front-indicator">Front</div>';
         html += '<div class="seat-layout">';
         
-        // Row 1 has 4 seats, rows 2-6 have 2 seats each (14 seats total)
-        for (let row = 1; row <= 6; row++) {
+        // Use layout configuration to render seats
+        layout.rows.forEach(rowConfig => {
+            const row = rowConfig.row;
+            const numCols = rowConfig.seats;
+            
             html += '<div class="seat-row">';
             html += `<div class="row-label">Row ${row}</div>`;
             html += '<div class="seats-group">';
-            
-            // Row 1 has 4 columns, other rows have 2 columns
-            const numCols = row === 1 ? 4 : 2;
             for (let col = 1; col <= numCols; col++) {
                 const booking = bookings.find(b => b.seat_index === row && b.seat_pos === col);
                 let seatClass = 'empty';
@@ -98,7 +106,7 @@ async function loadSessionLayout() {
             
             html += '</div>';
             html += '</div>';
-        }
+        });
         
         html += '</div>';
         html += '<div class="legend" style="margin-top: 30px; padding: 20px; background: #1e293b; border-radius: 8px;">';
