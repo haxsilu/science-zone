@@ -532,31 +532,15 @@ async function loadExamLayout(slotId) {
         html += '<div class="front-indicator">Front</div>';
         html += '<div class="seat-layout">';
         
-        // 4 rows, 6 columns layout (24 seats total)
-        for (let row = 1; row <= 4; row++) {
+        // Row 1 has 4 seats, rows 2-6 have 2 seats each (14 seats total)
+        for (let row = 1; row <= 6; row++) {
             html += '<div class="seat-row">';
             html += `<div class="row-label">Row ${row}</div>`;
             html += '<div class="seats-group">';
             
-            // Left side (3 seats)
-            for (let col = 1; col <= 3; col++) {
-                const booking = bookings.find(b => b.seat_index === row && b.seat_pos === col);
-                let seatClass = 'empty';
-                let seatContent = `<div class="seat-number">${row}-${col}</div>`;
-                
-                if (booking) {
-                    seatClass = booking.student_class === 'Grade 7' ? 'grade7' : 'grade8';
-                    seatContent = `<div class="seat-number">${row}-${col}</div><div class="seat-name">${booking.student_name}</div><div class="seat-grade">${booking.student_class}</div>`;
-                }
-                
-                html += `<div class="seat ${seatClass}" title="${booking ? `Seat ${row}-${col}: ${booking.student_name} (${booking.student_class})` : `Seat ${row}-${col}: Available`}">${seatContent}</div>`;
-            }
-            
-            // Aisle
-            html += '<div class="aisle"></div>';
-            
-            // Right side (3 seats)
-            for (let col = 4; col <= 6; col++) {
+            // Row 1 has 4 columns, other rows have 2 columns
+            const numCols = row === 1 ? 4 : 2;
+            for (let col = 1; col <= numCols; col++) {
                 const booking = bookings.find(b => b.seat_index === row && b.seat_pos === col);
                 let seatClass = 'empty';
                 let seatContent = `<div class="seat-number">${row}-${col}</div>`;
