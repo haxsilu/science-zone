@@ -236,12 +236,39 @@ const setupDatabase = (database) => {
     database.prepare(`
       INSERT INTO exam_slots (label, start_time, end_time, max_seats) 
       VALUES (?, ?, ?, ?)
-    `).run('Session 1', '2024-12-05T14:00:00', '2024-12-05T17:00:00', seatLayoutConfig.totalSeats);
+    `).run('Main Exam 2025 - Session 1', '2025-12-05T14:00:00', '2025-12-05T17:00:00', seatLayoutConfig.totalSeats);
     
     database.prepare(`
       INSERT INTO exam_slots (label, start_time, end_time, max_seats) 
       VALUES (?, ?, ?, ?)
-    `).run('Session 2', '2024-12-05T17:30:00', '2024-12-05T20:30:00', seatLayoutConfig.totalSeats);
+    `).run('Main Exam 2025 - Session 2', '2025-12-05T17:30:00', '2025-12-05T20:30:00', seatLayoutConfig.totalSeats);
+  }
+
+  const existingSlots = database.prepare('SELECT * FROM exam_slots ORDER BY start_time').all();
+  const needsLegacyExamUpdate = existingSlots.length === 2 && existingSlots.every(slot => slot.start_time.startsWith('2024-12-05T'));
+  if (needsLegacyExamUpdate) {
+    const sessionUpdates = [
+      {
+        slotId: existingSlots[0].id,
+        label: 'Main Exam 2025 - Session 1',
+        start: '2025-12-05T14:00:00',
+        end: '2025-12-05T17:00:00'
+      },
+      {
+        slotId: existingSlots[1].id,
+        label: 'Main Exam 2025 - Session 2',
+        start: '2025-12-05T17:30:00',
+        end: '2025-12-05T20:30:00'
+      }
+    ];
+
+    sessionUpdates.forEach(({ slotId, label, start, end }) => {
+      database.prepare(`
+        UPDATE exam_slots
+        SET label = ?, start_time = ?, end_time = ?
+        WHERE id = ?
+      `).run(label, start, end, slotId);
+    });
   }
 
   database.prepare('UPDATE exam_slots SET max_seats = ?').run(seatLayoutConfig.totalSeats);

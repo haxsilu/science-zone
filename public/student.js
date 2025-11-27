@@ -4,6 +4,18 @@ let selectedSeatPos = null;
 let currentBooking = null;
 let studentGrade = null;
 
+function formatSlotOption(slot) {
+    const start = new Date(slot.start_time);
+    const end = new Date(slot.end_time);
+    const timeOptions = { hour: 'numeric', minute: '2-digit' };
+    const startTime = start.toLocaleTimeString([], timeOptions);
+    const endTime = end.toLocaleTimeString([], timeOptions);
+    const year = start.getFullYear();
+    const labelIncludesYear = slot.label && slot.label.includes(year.toString());
+    const baseLabel = labelIncludesYear ? slot.label : `${slot.label || 'Main Exam Session'} - ${year}`;
+    return `${baseLabel} · ${startTime} - ${endTime}`;
+}
+
 // Check if student can book
 async function checkStudentAccess() {
     try {
@@ -35,7 +47,7 @@ async function loadSessions() {
         const slots = await fetch('/api/exam/slots').then(r => r.json());
         const select = document.getElementById('sessionSelect');
         select.innerHTML = '<option value="">-- Select Session --</option>' + 
-            slots.map(slot => `<option value="${slot.id}">${slot.label} (${new Date(slot.start_time).toLocaleString()} - ${new Date(slot.end_time).toLocaleString()})</option>`).join('');
+            slots.map(slot => `<option value="${slot.id}">${formatSlotOption(slot)}</option>`).join('');
     } catch (err) {
         console.error('Sessions load error:', err);
     }
