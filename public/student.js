@@ -76,7 +76,6 @@ async function loadSessionLayout() {
         
         let html = `<h2 style="margin-bottom: 20px; text-align: center;">Seat Layout - ${data.slot.label}</h2>`;
         html += '<div class="seat-layout-wrapper">';
-        html += '<div class="front-indicator">Front</div>';
         html += '<div class="seat-layout">';
 
         const layoutRows = layout.rows || [];
@@ -142,6 +141,7 @@ async function loadSessionLayout() {
         });
         
         html += '</div>';
+        html += '<div class="front-indicator">Front</div>';
         html += '<div class="legend" style="margin-top: 30px; padding: 20px; background: #1e293b; border-radius: 8px;">';
         html += '<h3 style="margin-bottom: 15px; color: #60a5fa;">Legend</h3>';
         html += '<div style="display: flex; gap: 20px; flex-wrap: wrap;">';

@@ -106,7 +106,7 @@ select:focus {
     color: #60a5fa;
     font-weight: 600;
     font-size: 14px;
-    margin-bottom: 20px;
+    margin: 20px auto 0;
     padding: 10px;
     background: #1e293b;
     border-radius: 6px;
