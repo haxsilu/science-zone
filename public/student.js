@@ -66,14 +66,14 @@ async function loadSessionLayout() {
         html += '<div class="front-indicator">Front</div>';
         html += '<div class="seat-layout">';
         
-        // 4 rows, 6 columns layout (24 seats total)
-        for (let row = 1; row <= 4; row++) {
+        // 6 rows, 2 columns layout (12 seats total)
+        for (let row = 1; row <= 6; row++) {
             html += '<div class="seat-row">';
             html += `<div class="row-label">Row ${row}</div>`;
             html += '<div class="seats-group">';
             
-            // Left side (3 seats)
-            for (let col = 1; col <= 3; col++) {
+            // 2 columns side by side
+            for (let col = 1; col <= 2; col++) {
                 const booking = bookings.find(b => b.seat_index === row && b.seat_pos === col);
                 let seatClass = 'empty';
                 let isOwn = false;
@@ -88,34 +88,10 @@ async function loadSessionLayout() {
                 }
                 
                 const seatId = `seat-${row}-${col}`;
-                html += `<div class="seat ${seatClass}" id="${seatId}" onclick="${!booking && !isOwn ? `selectSeat(${row}, ${col})` : ''}" style="cursor: ${booking || isOwn ? 'not-allowed' : 'pointer'}" title="${booking ? `${booking.student_name} (${booking.student_class})` : `Row ${row}, Seat ${col} - Available`}">
+                const bookingInfo = booking ? `${booking.student_name} (${booking.student_grade || booking.student_class})` : `Row ${row}, Seat ${col} - Available`;
+                html += `<div class="seat ${seatClass}" id="${seatId}" onclick="${!booking && !isOwn ? `selectSeat(${row}, ${col})` : ''}" style="cursor: ${booking || isOwn ? 'not-allowed' : 'pointer'}" title="${bookingInfo}">
                     <div class="seat-number">${row}-${col}</div>
-                    ${booking ? `<div class="seat-name">${booking.student_name.split(' ')[0]}</div>` : ''}
-                </div>`;
-            }
-            
-            // Aisle
-            html += '<div class="aisle"></div>';
-            
-            // Right side (3 seats)
-            for (let col = 4; col <= 6; col++) {
-                const booking = bookings.find(b => b.seat_index === row && b.seat_pos === col);
-                let seatClass = 'empty';
-                let isOwn = false;
-                
-                if (booking) {
-                    if (ownBooking && booking.id === ownBooking.id) {
-                        seatClass = 'own-booking';
-                        isOwn = true;
-                    } else {
-                        seatClass = booking.student_class === 'Grade 7' ? 'grade7' : 'grade8';
-                    }
-                }
-                
-                const seatId = `seat-${row}-${col}`;
-                html += `<div class="seat ${seatClass}" id="${seatId}" onclick="${!booking && !isOwn ? `selectSeat(${row}, ${col})` : ''}" style="cursor: ${booking || isOwn ? 'not-allowed' : 'pointer'}" title="${booking ? `${booking.student_name} (${booking.student_class})` : `Row ${row}, Seat ${col} - Available`}">
-                    <div class="seat-number">${row}-${col}</div>
-                    ${booking ? `<div class="seat-name">${booking.student_name.split(' ')[0]}</div>` : ''}
+                    ${booking ? `<div class="seat-name">${booking.student_name.split(' ')[0]}</div><div class="seat-grade">${booking.student_grade || booking.student_class}</div>` : ''}
                 </div>`;
             }
             
