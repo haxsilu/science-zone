@@ -57,14 +57,22 @@ async function loadSessionLayout() {
         const container = document.getElementById('seatLayoutContainer');
         
         const bookings = data.bookings;
-        const layout = data.layout || { rows: [
-            { row: 1, seats: 4 },
-            { row: 2, seats: 2 },
-            { row: 3, seats: 2 },
-            { row: 4, seats: 2 },
-            { row: 5, seats: 2 },
-            { row: 6, seats: 2 }
-        ]};
+        const layout = data.layout || { 
+            rows: [
+                { row: 1, seats: 4, seatFlow: 'row', labelPosition: 'right', section: 'main' },
+                { row: 2, seats: 4, seatFlow: 'row', labelPosition: 'right', section: 'main' },
+                { row: 3, seats: 4, seatFlow: 'row', labelPosition: 'right', section: 'main' },
+                { row: 4, seats: 4, seatFlow: 'row', labelPosition: 'right', section: 'main' },
+                { row: 5, seats: 4, seatFlow: 'row', labelPosition: 'right', section: 'main' },
+                { row: 6, seats: 4, seatFlow: 'row', labelPosition: 'right', section: 'main' },
+                { row: 7, seats: 4, seatFlow: 'column', labelPosition: 'left', section: 'side' },
+                { row: 8, seats: 4, seatFlow: 'column', labelPosition: 'left', section: 'side' }
+            ],
+            visualSections: [
+                { id: 'side-column', layout: 'stack', rows: [7, 8] },
+                { id: 'main-block', layout: 'column', rows: [6, 5, 4, 3, 2, 1] }
+            ]
+        };
         
         // Find student's own booking
         const ownBooking = currentBooking ? bookings.find(b => b.id === currentBooking.id) : null;
@@ -73,38 +81,66 @@ async function loadSessionLayout() {
         html += '<div class="seat-layout-wrapper">';
         html += '<div class="front-indicator">Front</div>';
         html += '<div class="seat-layout">';
+
+        const layoutRows = layout.rows || [];
+        const rowLookup = new Map(layoutRows.map(r => [r.row, r]));
+        const visualSections = (layout.visualSections && layout.visualSections.length)
+            ? layout.visualSections
+            : [{ id: 'default', layout: 'column', rows: layoutRows.map(r => r.row) }];
         
-        // Use layout configuration to render seats
-        layout.rows.forEach(rowConfig => {
-            const row = rowConfig.row;
-            const numCols = rowConfig.seats;
+        visualSections.forEach(section => {
+            const sectionClasses = ['seat-section'];
+            if (section.id) sectionClasses.push(`section-${section.id}`);
+            if (section.layout) sectionClasses.push(`section-${section.layout}`);
             
-            html += '<div class="seat-row">';
-            html += `<div class="row-label">Row ${row}</div>`;
-            html += '<div class="seats-group">';
-            for (let col = 1; col <= numCols; col++) {
-                const booking = bookings.find(b => b.seat_index === row && b.seat_pos === col);
-                let seatClass = 'empty';
-                let isOwn = false;
-                
-                if (booking) {
-                    if (ownBooking && booking.id === ownBooking.id) {
-                        seatClass = 'own-booking';
-                        isOwn = true;
-                    } else {
-                        seatClass = booking.student_class === 'Grade 7' ? 'grade7' : 'grade8';
-                    }
+            html += `<div class="${sectionClasses.join(' ')}">`;
+            
+            const sectionRows = (section.rows && section.rows.length) ? section.rows : layoutRows.map(r => r.row);
+            sectionRows.forEach(rowNumber => {
+                const rowConfig = rowLookup.get(rowNumber);
+                if (!rowConfig || !rowConfig.seats) {
+                    return;
                 }
                 
-                const seatId = `seat-${row}-${col}`;
-                const bookingInfo = booking ? `${booking.student_name} (${booking.student_grade || booking.student_class})` : `Row ${row}, Seat ${col} - Available`;
-                html += `<div class="seat ${seatClass}" id="${seatId}" onclick="${!booking && !isOwn ? `selectSeat(${row}, ${col})` : ''}" style="cursor: ${booking || isOwn ? 'not-allowed' : 'pointer'}" title="${bookingInfo}">
-                    <div class="seat-number">${row}-${col}</div>
-                    ${booking ? `<div class="seat-name">${booking.student_name.split(' ')[0]}</div><div class="seat-grade">${booking.student_grade || booking.student_class}</div>` : ''}
-                </div>`;
-            }
+                const seatFlow = rowConfig.seatFlow === 'column' ? 'vertical' : 'horizontal';
+                const labelPosition = rowConfig.labelPosition || 'left';
+                const rowClasses = [
+                    'seat-row',
+                    `label-${labelPosition}`,
+                    seatFlow === 'vertical' ? 'row-vertical' : 'row-horizontal',
+                    rowConfig.section ? `section-${rowConfig.section}-row` : ''
+                ].filter(Boolean);
+                
+                html += `<div class="${rowClasses.join(' ')}">`;
+                html += `<div class="row-label">Row ${rowConfig.row}</div>`;
+                html += `<div class="seats-group ${seatFlow}">`;
+                
+                for (let col = 1; col <= rowConfig.seats; col++) {
+                    const booking = bookings.find(b => b.seat_index === rowConfig.row && b.seat_pos === col);
+                    let seatClass = 'empty';
+                    let isOwn = false;
+                    
+                    if (booking) {
+                        if (ownBooking && booking.id === ownBooking.id) {
+                            seatClass = 'own-booking';
+                            isOwn = true;
+                        } else {
+                            seatClass = booking.student_class === 'Grade 7' ? 'grade7' : 'grade8';
+                        }
+                    }
+                    
+                    const seatId = `seat-${rowConfig.row}-${col}`;
+                    const bookingInfo = booking ? `${booking.student_name} (${booking.student_grade || booking.student_class})` : `Row ${rowConfig.row}, Seat ${col} - Available`;
+                    html += `<div class="seat ${seatClass}" id="${seatId}" onclick="${!booking && !isOwn ? `selectSeat(${rowConfig.row}, ${col})` : ''}" style="cursor: ${booking || isOwn ? 'not-allowed' : 'pointer'}" title="${bookingInfo}">
+                        <div class="seat-number">${rowConfig.row}-${col}</div>
+                        ${booking ? `<div class="seat-name">${booking.student_name.split(' ')[0]}</div><div class="seat-grade">${booking.student_grade || booking.student_class}</div>` : ''}
+                    </div>`;
+                }
+                
+                html += '</div>';
+                html += '</div>';
+            });
             
-            html += '</div>';
             html += '</div>';
         });
         

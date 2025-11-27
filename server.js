@@ -127,13 +127,16 @@ if (!slotsExist) {
   db.prepare(`
     INSERT INTO exam_slots (label, start_time, end_time, max_seats) 
     VALUES (?, ?, ?, ?)
-  `).run('Session 1', '2024-12-05T14:00:00', '2024-12-05T17:00:00', 14);
+  `).run('Session 1', '2024-12-05T14:00:00', '2024-12-05T17:00:00', seatLayoutConfig.totalSeats);
   
   db.prepare(`
     INSERT INTO exam_slots (label, start_time, end_time, max_seats) 
     VALUES (?, ?, ?, ?)
-  `).run('Session 2', '2024-12-05T17:30:00', '2024-12-05T20:30:00', 14);
+  `).run('Session 2', '2024-12-05T17:30:00', '2024-12-05T20:30:00', seatLayoutConfig.totalSeats);
 }
+
+// Ensure existing slots always reflect the current layout capacity
+db.prepare('UPDATE exam_slots SET max_seats = ?').run(seatLayoutConfig.totalSeats);
 
 // Middleware: Check authentication
 const requireAuth = (req, res, next) => {
@@ -525,17 +528,21 @@ app.get('/api/finance', requireAdmin, (req, res) => {
 
 // API: Exam Slots
 app.get('/api/exam/slots', requireAuth, (req, res) => {
-  const slots = db.prepare('SELECT * FROM exam_slots ORDER BY start_time').all();
+  const slots = db.prepare('SELECT * FROM exam_slots ORDER BY start_time').all().map(slot => ({
+    ...slot,
+    max_seats: seatLayoutConfig.totalSeats
+  }));
   res.json(slots);
 });
 
 app.get('/api/exam/slots/:id/layout', requireAuth, (req, res) => {
   const { id } = req.params;
-  const slot = db.prepare('SELECT * FROM exam_slots WHERE id = ?').get(id);
+  const slotRecord = db.prepare('SELECT * FROM exam_slots WHERE id = ?').get(id);
   
-  if (!slot) {
+  if (!slotRecord) {
     return res.status(404).json({ error: 'Slot not found' });
   }
+  const slot = { ...slotRecord, max_seats: seatLayoutConfig.totalSeats };
   
   const bookings = db.prepare(`
     SELECT eb.*, s.grade as student_grade
