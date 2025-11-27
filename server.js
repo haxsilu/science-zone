@@ -126,12 +126,12 @@ if (!slotsExist) {
   db.prepare(`
     INSERT INTO exam_slots (label, start_time, end_time, max_seats) 
     VALUES (?, ?, ?, ?)
-  `).run('Session 1', '2024-12-05T14:00:00', '2024-12-05T17:00:00', 25);
+  `).run('Session 1', '2024-12-05T14:00:00', '2024-12-05T17:00:00', 12);
   
   db.prepare(`
     INSERT INTO exam_slots (label, start_time, end_time, max_seats) 
     VALUES (?, ?, ?, ?)
-  `).run('Session 2', '2024-12-05T17:30:00', '2024-12-05T20:30:00', 24);
+  `).run('Session 2', '2024-12-05T17:30:00', '2024-12-05T20:30:00', 12);
 }
 
 // Middleware: Check authentication
@@ -564,20 +564,19 @@ app.post('/api/exam/book', requireStudent, (req, res) => {
     return res.status(403).json({ error: 'Only Grade 7 and Grade 8 students can book seats' });
   }
   
-  // Validate seat position (1-4 rows, 1-6 columns)
-  if (seat_index < 1 || seat_index > 4 || seat_pos < 1 || seat_pos > 6) {
+  // Validate seat position (1-6 rows, 1-2 columns)
+  if (seat_index < 1 || seat_index > 6 || seat_pos < 1 || seat_pos > 2) {
     return res.status(400).json({ error: 'Invalid seat position' });
   }
   
-  // Check if already booked
+  // Check if student already has a booking - prevent multiple bookings
   const existing = db.prepare(`
     SELECT * FROM exam_bookings 
     WHERE slot_id = ? AND student_id = ?
   `).get(slot_id, studentId);
   
   if (existing) {
-    // Cancel existing booking
-    db.prepare('DELETE FROM exam_bookings WHERE id = ?').run(existing.id);
+    return res.status(400).json({ error: 'You already have a booking for this session. You can only book one seat.' });
   }
   
   // Check if seat is available
@@ -601,19 +600,19 @@ app.post('/api/exam/book', requireStudent, (req, res) => {
   // Check adjacent seats
   const adjacentSeats = [];
   
-  // Horizontal neighbors (same row, adjacent columns)
-  if (seat_pos > 1) {
-    adjacentSeats.push({ row: seat_index, col: seat_pos - 1 }); // Left
-  }
-  if (seat_pos < 6) {
-    adjacentSeats.push({ row: seat_index, col: seat_pos + 1 }); // Right
+  // Horizontal neighbors (same row, adjacent columns) - only 2 columns now
+  if (seat_pos === 1) {
+    adjacentSeats.push({ row: seat_index, col: 2 }); // Right
+  } else if (seat_pos === 2) {
+    adjacentSeats.push({ row: seat_index, col: 1 }); // Left
   }
   
   // Vertical neighbors (same column, different row)
-  if (seat_index === 1) {
-    adjacentSeats.push({ row: 2, col: seat_pos }); // Below
-  } else {
-    adjacentSeats.push({ row: 1, col: seat_pos }); // Above
+  if (seat_index > 1) {
+    adjacentSeats.push({ row: seat_index - 1, col: seat_pos }); // Above
+  }
+  if (seat_index < 6) {
+    adjacentSeats.push({ row: seat_index + 1, col: seat_pos }); // Below
   }
   
   // Check if any adjacent seat has the same grade

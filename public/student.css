@@ -141,18 +141,6 @@ select:focus {
     flex: 1;
 }
 
-.aisle {
-    width: 30px;
-    height: 100%;
-    background: repeating-linear-gradient(
-        90deg,
-        #334155 0px,
-        #334155 2px,
-        transparent 2px,
-        transparent 4px
-    );
-    margin: 0 10px;
-}
 
 .seat {
     width: 80px;
@@ -186,6 +174,13 @@ select:focus {
     text-overflow: ellipsis;
     white-space: nowrap;
     max-width: 100%;
+}
+
+.seat-grade {
+    font-size: 8px;
+    margin-top: 1px;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 500;
 }
 
 .seat.empty {
@@ -256,11 +251,6 @@ footer {
     .row-label {
         width: 50px;
         font-size: 12px;
-    }
-    
-    .aisle {
-        width: 20px;
-        margin: 0 5px;
     }
     
     .seats-group {
