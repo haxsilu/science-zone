@@ -99,6 +99,7 @@ async function loadStudents() {
                 <td style="font-size: 12px;">${s.qr_token}</td>
                 <td>
                     <button class="btn-edit" onclick="editStudent(${s.id})">Edit</button>
+                    <button class="btn-secondary" onclick="downloadStudentQR(${s.id})">Download QR</button>
                     <button class="btn-danger" onclick="deleteStudent(${s.id})">Delete</button>
                 </td>
             </tr>
@@ -169,6 +170,60 @@ async function deleteStudent(id) {
         loadStudents();
     } catch (err) {
         alert('Error deleting student: ' + err.message);
+    }
+}
+
+function getFilenameFromDisposition(disposition, fallback) {
+    if (!disposition) return fallback;
+    const match = /filename\*?=(?:UTF-8'')?["']?([^"';]+)["']?/i.exec(disposition);
+    if (match && match[1]) {
+        try {
+            return decodeURIComponent(match[1]);
+        } catch (_) {
+            return match[1];
+        }
+    }
+    return fallback;
+}
+
+function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+}
+
+async function downloadStudentQR(id) {
+    try {
+        const res = await fetch(`/api/students/${id}/qr`, { credentials: 'include' });
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || 'Unable to download QR');
+        }
+        const blob = await res.blob();
+        const filename = getFilenameFromDisposition(res.headers.get('content-disposition'), `student-${id}-qr.png`);
+        downloadBlob(blob, filename);
+    } catch (err) {
+        alert('Error downloading QR: ' + err.message);
+    }
+}
+
+async function downloadAllStudentQRs() {
+    try {
+        const res = await fetch('/api/students/qr/bulk', { credentials: 'include' });
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || 'Unable to download QR archive');
+        }
+        const blob = await res.blob();
+        const filename = getFilenameFromDisposition(res.headers.get('content-disposition'), 'student-qrs.zip');
+        downloadBlob(blob, filename);
+    } catch (err) {
+        alert('Error downloading QR archive: ' + err.message);
     }
 }
 
@@ -612,13 +667,14 @@ async function loadExamLayout(slotId) {
         // Add booking details table
         if (bookings.length > 0) {
             html += '<div style="margin-top: 30px;"><h3>Booking Details</h3>';
-            html += '<div class="table-container"><table><thead><tr><th>Seat</th><th>Student Name</th><th>Grade</th></tr></thead><tbody>';
+            html += '<div class="table-container"><table><thead><tr><th>Seat</th><th>Student Name</th><th>Grade</th><th>Actions</th></tr></thead><tbody>';
             
             bookings.forEach(booking => {
                 html += `<tr>
                     <td>Row ${booking.seat_index}, Column ${booking.seat_pos}</td>
                     <td>${booking.student_name}</td>
                     <td>${booking.student_class}</td>
+                    <td><button class="btn-danger" onclick="deleteBooking(${booking.id}, ${slotId})">Remove</button></td>
                 </tr>`;
             });
             
@@ -629,6 +685,22 @@ async function loadExamLayout(slotId) {
         container.innerHTML = html;
     } catch (err) {
         console.error('Exam layout load error:', err);
+    }
+}
+
+async function deleteBooking(bookingId, slotId) {
+    if (!confirm('Remove this booking and free the seat?')) {
+        return;
+    }
+    try {
+        const res = await fetch(`/api/exam/bookings/${bookingId}`, { method: 'DELETE', credentials: 'include' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            throw new Error(data.error || 'Failed to remove booking');
+        }
+        loadExamLayout(slotId);
+    } catch (err) {
+        alert('Error deleting booking: ' + err.message);
     }
 }
 

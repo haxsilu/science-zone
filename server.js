@@ -2,12 +2,59 @@ const express = require('express');
 const session = require('express-session');
 const bodyParser = require('body-parser');
 const path = require('path');
+const fs = require('fs');
 const Database = require('better-sqlite3');
 const bcrypt = require('bcrypt');
+const QRCode = require('qrcode');
+const archiver = require('archiver');
 const seatLayoutConfig = require('./seat-layout-config');
 
 const app = express();
 const PORT = process.env.PORT || 5050;
+const QR_OUTPUT_DIR = path.join(__dirname, 'qrs');
+const QR_OPTIONS = {
+  type: 'png',
+  width: 400,
+  margin: 2,
+  color: {
+    dark: '#000000',
+    light: '#ffffffff'
+  }
+};
+
+if (!fs.existsSync(QR_OUTPUT_DIR)) {
+  fs.mkdirSync(QR_OUTPUT_DIR, { recursive: true });
+}
+
+const sanitizeFileComponent = (value = '') => {
+  const safe = value.toString().trim().replace(/[^a-z0-9\-_.]/gi, '_');
+  return safe || 'student';
+};
+
+const getStudentQrFilename = (studentId) => `student-${studentId}.png`;
+const getStudentQrPath = (studentId) => path.join(QR_OUTPUT_DIR, getStudentQrFilename(studentId));
+
+const writeStudentQr = async (student) => {
+  if (!student || !student.id || !student.qr_token) {
+    return null;
+  }
+  const qrPath = getStudentQrPath(student.id);
+  await QRCode.toFile(qrPath, student.qr_token, QR_OPTIONS);
+  return qrPath;
+};
+
+const ensureStudentQr = async (student) => {
+  if (!student) return null;
+  const qrPath = getStudentQrPath(student.id);
+  try {
+    await fs.promises.access(qrPath, fs.constants.F_OK);
+    return qrPath;
+  } catch {
+    return writeStudentQr(student);
+  }
+};
+
+const buildQrDownloadName = (student) => `${sanitizeFileComponent(student?.name)}-${student?.id}.png`;
 
 // Middleware
 app.use(bodyParser.json());
@@ -226,6 +273,8 @@ app.post('/api/student/register-login', async (req, res) => {
       }
     }
     
+    await ensureStudentQr(student);
+
     // Set session
     req.session.userId = user.id;
     req.session.role = 'student';
@@ -271,31 +320,85 @@ app.post('/api/students', requireAdmin, async (req, res) => {
   
   try {
     const result = db.prepare('INSERT INTO students (name, phone, grade, qr_token) VALUES (?, ?, ?, ?)').run(name, phone, grade, qrToken);
-    
+    const student = db.prepare('SELECT * FROM students WHERE id = ?').get(result.lastInsertRowid);
+
     // Create student login account
     const defaultPassword = '1234';
     const passwordHash = await bcrypt.hash(defaultPassword, 10);
     db.prepare('INSERT INTO users (username, password_hash, role, student_id) VALUES (?, ?, ?, ?)').run(phone, passwordHash, 'student', result.lastInsertRowid);
+
+    await ensureStudentQr(student);
     
-    res.json({ id: result.lastInsertRowid, name, phone, grade, qr_token: qrToken });
+    res.json(student);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 });
 
-app.put('/api/students/:id', requireAdmin, (req, res) => {
+app.get('/api/students/qr/bulk', requireAdmin, async (req, res) => {
+  try {
+    const students = db.prepare('SELECT * FROM students ORDER BY name').all();
+    
+    if (!students.length) {
+      return res.status(404).json({ error: 'No students found' });
+    }
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="student-qr-codes-${Date.now()}.zip"`);
+
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    archive.on('error', (err) => {
+      console.error('QR archive error:', err);
+      res.end();
+    });
+
+    archive.pipe(res);
+
+    for (const student of students) {
+      await ensureStudentQr(student);
+      archive.file(getStudentQrPath(student.id), { name: buildQrDownloadName(student) });
+    }
+
+    await archive.finalize();
+  } catch (err) {
+    console.error('Bulk QR download error:', err);
+    res.status(500).json({ error: 'Failed to prepare QR archive' });
+  }
+});
+
+app.get('/api/students/:id/qr', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const student = db.prepare('SELECT * FROM students WHERE id = ?').get(id);
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+    
+    await ensureStudentQr(student);
+    res.download(getStudentQrPath(student.id), buildQrDownloadName(student));
+  } catch (err) {
+    console.error('Single QR download error:', err);
+    res.status(500).json({ error: 'Failed to prepare QR code' });
+  }
+});
+
+app.put('/api/students/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { name, phone, grade } = req.body;
   
   try {
     db.prepare('UPDATE students SET name = ?, phone = ?, grade = ? WHERE id = ?').run(name, phone, grade, id);
+    const updatedStudent = db.prepare('SELECT * FROM students WHERE id = ?').get(id);
+    if (updatedStudent) {
+      await ensureStudentQr(updatedStudent);
+    }
     res.json({ success: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 });
 
-app.delete('/api/students/:id', requireAdmin, (req, res) => {
+app.delete('/api/students/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   
   try {
@@ -307,8 +410,16 @@ app.delete('/api/students/:id', requireAdmin, (req, res) => {
     db.prepare('DELETE FROM payments WHERE student_id = ?').run(id);
     // Delete attendance
     db.prepare('DELETE FROM attendance WHERE student_id = ?').run(id);
+    // Delete exam bookings
+    db.prepare('DELETE FROM exam_bookings WHERE student_id = ?').run(id);
     // Delete student
     db.prepare('DELETE FROM students WHERE id = ?').run(id);
+
+    try {
+      await fs.promises.unlink(getStudentQrPath(id));
+    } catch (_) {
+      // Ignore missing file
+    }
     res.json({ success: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -554,6 +665,18 @@ app.get('/api/exam/slots/:id/layout', requireAuth, (req, res) => {
   res.json({ slot, bookings, layout: seatLayoutConfig });
 });
 
+app.delete('/api/exam/bookings/:id', requireAdmin, (req, res) => {
+  const { id } = req.params;
+  const booking = db.prepare('SELECT * FROM exam_bookings WHERE id = ?').get(id);
+  
+  if (!booking) {
+    return res.status(404).json({ error: 'Booking not found' });
+  }
+  
+  db.prepare('DELETE FROM exam_bookings WHERE id = ?').run(id);
+  res.json({ success: true });
+});
+
 app.post('/api/exam/book', requireStudent, (req, res) => {
   const { slot_id, seat_index, seat_pos } = req.body;
   const studentId = req.session.studentId;
@@ -577,14 +700,17 @@ app.post('/api/exam/book', requireStudent, (req, res) => {
     return res.status(400).json({ error: 'Invalid seat position' });
   }
   
-  // Check if student already has a booking - prevent multiple bookings
+  // Check if student already has a booking in any session
   const existing = db.prepare(`
-    SELECT * FROM exam_bookings 
-    WHERE slot_id = ? AND student_id = ?
-  `).get(slot_id, studentId);
+    SELECT eb.*, es.label 
+    FROM exam_bookings eb
+    JOIN exam_slots es ON eb.slot_id = es.id
+    WHERE eb.student_id = ?
+    LIMIT 1
+  `).get(studentId);
   
   if (existing) {
-    return res.status(400).json({ error: 'You already have a booking for this session. You can only book one seat.' });
+    return res.status(400).json({ error: `You already have a booking for ${existing.label}. Students are limited to one seat overall.` });
   }
   
   // Check if seat is available
