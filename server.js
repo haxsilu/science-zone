@@ -7,11 +7,16 @@ const Database = require('better-sqlite3');
 const bcrypt = require('bcrypt');
 const QRCode = require('qrcode');
 const archiver = require('archiver');
+const multer = require('multer');
+const Jimp = require('jimp');
 const seatLayoutConfig = require('./seat-layout-config');
 
 const app = express();
 const PORT = process.env.PORT || 5050;
 const QR_OUTPUT_DIR = path.join(__dirname, 'qrs');
+const DB_FILE = path.join(__dirname, 'class_manager.db');
+const DB_BACKUP_DIR = path.join(__dirname, 'db-backups');
+const TMP_DIR = path.join(__dirname, 'tmp');
 const QR_OPTIONS = {
   type: 'png',
   width: 400,
@@ -25,6 +30,14 @@ const QR_OPTIONS = {
 if (!fs.existsSync(QR_OUTPUT_DIR)) {
   fs.mkdirSync(QR_OUTPUT_DIR, { recursive: true });
 }
+if (!fs.existsSync(DB_BACKUP_DIR)) {
+  fs.mkdirSync(DB_BACKUP_DIR, { recursive: true });
+}
+if (!fs.existsSync(TMP_DIR)) {
+  fs.mkdirSync(TMP_DIR, { recursive: true });
+}
+
+const upload = multer({ dest: TMP_DIR });
 
 const sanitizeFileComponent = (value = '') => {
   const safe = value.toString().trim().replace(/[^a-z0-9\-_.]/gi, '_');
@@ -38,8 +51,34 @@ const writeStudentQr = async (student) => {
   if (!student || !student.id || !student.qr_token) {
     return null;
   }
+
   const qrPath = getStudentQrPath(student.id);
-  await QRCode.toFile(qrPath, student.qr_token, QR_OPTIONS);
+  const qrBuffer = await QRCode.toBuffer(student.qr_token, QR_OPTIONS);
+  const qrImage = await Jimp.read(qrBuffer);
+  const labelHeight = 60;
+  const width = qrImage.getWidth();
+  const height = qrImage.getHeight() + labelHeight;
+  const labeledImage = new Jimp(width, height, 0xffffffff);
+
+  labeledImage.composite(qrImage, 0, 0);
+
+  const font = await getQrLabelFont();
+  const label = (student.name || `Student ${student.id}`).trim();
+
+  labeledImage.print(
+    font,
+    0,
+    qrImage.getHeight(),
+    {
+      text: label,
+      alignmentX: Jimp.HORIZONTAL_ALIGN_CENTER,
+      alignmentY: Jimp.VERTICAL_ALIGN_MIDDLE
+    },
+    width,
+    labelHeight
+  );
+
+  await labeledImage.writeAsync(qrPath);
   return qrPath;
 };
 
@@ -56,6 +95,14 @@ const ensureStudentQr = async (student) => {
 
 const buildQrDownloadName = (student) => `${sanitizeFileComponent(student?.name)}-${student?.id}.png`;
 
+let qrFontPromise = null;
+const getQrLabelFont = () => {
+  if (!qrFontPromise) {
+    qrFontPromise = Jimp.loadFont(Jimp.FONT_SANS_16_BLACK);
+  }
+  return qrFontPromise;
+};
+
 // Middleware
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -69,121 +116,120 @@ app.use(session({
 }));
 
 // Initialize Database
-const db = new Database('class_manager.db');
+let db = new Database(DB_FILE);
 
-// Create tables
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    role TEXT NOT NULL,
-    student_id INTEGER,
-    FOREIGN KEY (student_id) REFERENCES students(id)
-  );
+const setupDatabase = (database) => {
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      role TEXT NOT NULL,
+      student_id INTEGER,
+      FOREIGN KEY (student_id) REFERENCES students(id)
+    );
 
-  CREATE TABLE IF NOT EXISTS students (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    phone TEXT UNIQUE NOT NULL,
-    grade TEXT NOT NULL,
-    qr_token TEXT UNIQUE NOT NULL,
-    created_at TEXT DEFAULT (datetime('now'))
-  );
+    CREATE TABLE IF NOT EXISTS students (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      phone TEXT UNIQUE NOT NULL,
+      grade TEXT NOT NULL,
+      qr_token TEXT UNIQUE NOT NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
 
-  CREATE TABLE IF NOT EXISTS classes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT UNIQUE NOT NULL,
-    monthly_fee INTEGER DEFAULT 2000
-  );
+    CREATE TABLE IF NOT EXISTS classes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL,
+      monthly_fee INTEGER DEFAULT 2000
+    );
 
-  CREATE TABLE IF NOT EXISTS enrollments (
-    student_id INTEGER,
-    class_id INTEGER,
-    PRIMARY KEY (student_id, class_id),
-    FOREIGN KEY (student_id) REFERENCES students(id),
-    FOREIGN KEY (class_id) REFERENCES classes(id)
-  );
+    CREATE TABLE IF NOT EXISTS enrollments (
+      student_id INTEGER,
+      class_id INTEGER,
+      PRIMARY KEY (student_id, class_id),
+      FOREIGN KEY (student_id) REFERENCES students(id),
+      FOREIGN KEY (class_id) REFERENCES classes(id)
+    );
 
-  CREATE TABLE IF NOT EXISTS payments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    student_id INTEGER NOT NULL,
-    class_id INTEGER NOT NULL,
-    month TEXT NOT NULL,
-    amount INTEGER NOT NULL,
-    method TEXT NOT NULL,
-    created_at TEXT DEFAULT (datetime('now')),
-    UNIQUE(student_id, class_id, month),
-    FOREIGN KEY (student_id) REFERENCES students(id),
-    FOREIGN KEY (class_id) REFERENCES classes(id)
-  );
+    CREATE TABLE IF NOT EXISTS payments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id INTEGER NOT NULL,
+      class_id INTEGER NOT NULL,
+      month TEXT NOT NULL,
+      amount INTEGER NOT NULL,
+      method TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(student_id, class_id, month),
+      FOREIGN KEY (student_id) REFERENCES students(id),
+      FOREIGN KEY (class_id) REFERENCES classes(id)
+    );
 
-  CREATE TABLE IF NOT EXISTS attendance (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    student_id INTEGER NOT NULL,
-    class_id INTEGER NOT NULL,
-    date TEXT NOT NULL,
-    created_at TEXT DEFAULT (datetime('now')),
-    UNIQUE(student_id, class_id, date),
-    FOREIGN KEY (student_id) REFERENCES students(id),
-    FOREIGN KEY (class_id) REFERENCES classes(id)
-  );
+    CREATE TABLE IF NOT EXISTS attendance (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id INTEGER NOT NULL,
+      class_id INTEGER NOT NULL,
+      date TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(student_id, class_id, date),
+      FOREIGN KEY (student_id) REFERENCES students(id),
+      FOREIGN KEY (class_id) REFERENCES classes(id)
+    );
 
-  CREATE TABLE IF NOT EXISTS exam_slots (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    label TEXT NOT NULL,
-    start_time TEXT NOT NULL,
-    end_time TEXT NOT NULL,
-    max_seats INTEGER NOT NULL
-  );
+    CREATE TABLE IF NOT EXISTS exam_slots (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      label TEXT NOT NULL,
+      start_time TEXT NOT NULL,
+      end_time TEXT NOT NULL,
+      max_seats INTEGER NOT NULL
+    );
 
-  CREATE TABLE IF NOT EXISTS exam_bookings (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    slot_id INTEGER NOT NULL,
-    seat_index INTEGER NOT NULL,
-    seat_pos INTEGER NOT NULL,
-    student_name TEXT NOT NULL,
-    student_class TEXT NOT NULL,
-    student_id INTEGER,
-    created_at TEXT DEFAULT (datetime('now')),
-    UNIQUE(slot_id, seat_index, seat_pos),
-    FOREIGN KEY (slot_id) REFERENCES exam_slots(id),
-    FOREIGN KEY (student_id) REFERENCES students(id)
-  );
-`);
+    CREATE TABLE IF NOT EXISTS exam_bookings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      slot_id INTEGER NOT NULL,
+      seat_index INTEGER NOT NULL,
+      seat_pos INTEGER NOT NULL,
+      student_name TEXT NOT NULL,
+      student_class TEXT NOT NULL,
+      student_id INTEGER,
+      created_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(slot_id, seat_index, seat_pos),
+      FOREIGN KEY (slot_id) REFERENCES exam_slots(id),
+      FOREIGN KEY (student_id) REFERENCES students(id)
+    );
+  `);
 
-// Seed data
-const adminExists = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');
-if (!adminExists) {
-  const adminHash = bcrypt.hashSync('admin123', 10);
-  db.prepare('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)').run('admin', adminHash, 'admin');
-}
-
-// Seed classes
-const classes = ['Grade 6', 'Grade 7', 'Grade 8', 'O/L'];
-classes.forEach(className => {
-  const exists = db.prepare('SELECT id FROM classes WHERE name = ?').get(className);
-  if (!exists) {
-    db.prepare('INSERT INTO classes (name, monthly_fee) VALUES (?, ?)').run(className, 2000);
+  const adminExists = database.prepare('SELECT id FROM users WHERE username = ?').get('admin');
+  if (!adminExists) {
+    const adminHash = bcrypt.hashSync('admin123', 10);
+    database.prepare('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)').run('admin', adminHash, 'admin');
   }
-});
 
-// Seed exam slots
-const slotsExist = db.prepare('SELECT id FROM exam_slots').get();
-if (!slotsExist) {
-  db.prepare(`
-    INSERT INTO exam_slots (label, start_time, end_time, max_seats) 
-    VALUES (?, ?, ?, ?)
-  `).run('Session 1', '2024-12-05T14:00:00', '2024-12-05T17:00:00', seatLayoutConfig.totalSeats);
-  
-  db.prepare(`
-    INSERT INTO exam_slots (label, start_time, end_time, max_seats) 
-    VALUES (?, ?, ?, ?)
-  `).run('Session 2', '2024-12-05T17:30:00', '2024-12-05T20:30:00', seatLayoutConfig.totalSeats);
-}
+  const defaultClasses = ['Grade 6', 'Grade 7', 'Grade 8', 'O/L'];
+  defaultClasses.forEach(className => {
+    const exists = database.prepare('SELECT id FROM classes WHERE name = ?').get(className);
+    if (!exists) {
+      database.prepare('INSERT INTO classes (name, monthly_fee) VALUES (?, ?)').run(className, 2000);
+    }
+  });
 
-// Ensure existing slots always reflect the current layout capacity
-db.prepare('UPDATE exam_slots SET max_seats = ?').run(seatLayoutConfig.totalSeats);
+  const slotsExist = database.prepare('SELECT id FROM exam_slots').get();
+  if (!slotsExist) {
+    database.prepare(`
+      INSERT INTO exam_slots (label, start_time, end_time, max_seats) 
+      VALUES (?, ?, ?, ?)
+    `).run('Session 1', '2024-12-05T14:00:00', '2024-12-05T17:00:00', seatLayoutConfig.totalSeats);
+    
+    database.prepare(`
+      INSERT INTO exam_slots (label, start_time, end_time, max_seats) 
+      VALUES (?, ?, ?, ?)
+    `).run('Session 2', '2024-12-05T17:30:00', '2024-12-05T20:30:00', seatLayoutConfig.totalSeats);
+  }
+
+  database.prepare('UPDATE exam_slots SET max_seats = ?').run(seatLayoutConfig.totalSeats);
+};
+
+setupDatabase(db);
 
 // Middleware: Check authentication
 const requireAuth = (req, res, next) => {
@@ -635,6 +681,69 @@ app.get('/api/finance', requireAdmin, (req, res) => {
   const grandTotal = finance.reduce((sum, item) => sum + item.total_revenue, 0);
   
   res.json({ classes: finance, grand_total: grandTotal });
+});
+
+// API: Settings - Database backup/restore
+app.get('/api/settings/database/download', requireAdmin, (req, res) => {
+  res.download(DB_FILE, `class-manager-${Date.now()}.db`, (err) => {
+    if (err) {
+      console.error('Database download error:', err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Failed to download database' });
+      }
+    }
+  });
+});
+
+app.post('/api/settings/database/upload', requireAdmin, upload.single('dbFile'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'Database file is required' });
+  }
+
+  const tempPath = req.file.path;
+  let databaseReopened = false;
+  let backupPath = null;
+
+  try {
+    const uploadedDb = new Database(tempPath, { readonly: true });
+    uploadedDb.prepare('SELECT name FROM sqlite_master LIMIT 1').get();
+    uploadedDb.close();
+
+    const backupName = `class_manager-backup-${Date.now()}.db`;
+    backupPath = path.join(DB_BACKUP_DIR, backupName);
+    await fs.promises.copyFile(DB_FILE, backupPath);
+
+    if (db) {
+      db.close();
+    }
+
+    await fs.promises.copyFile(tempPath, DB_FILE);
+    db = new Database(DB_FILE);
+    setupDatabase(db);
+    databaseReopened = true;
+
+    res.json({ success: true, backup: backupName });
+  } catch (err) {
+    console.error('Database upload error:', err);
+    if (backupPath) {
+      try {
+        await fs.promises.copyFile(backupPath, DB_FILE);
+      } catch (restoreErr) {
+        console.error('Failed to restore database after upload error:', restoreErr);
+      }
+    }
+    if (!databaseReopened) {
+      try {
+        db = new Database(DB_FILE);
+        setupDatabase(db);
+      } catch (reopenErr) {
+        console.error('Failed to reopen database after upload error:', reopenErr);
+      }
+    }
+    res.status(500).json({ error: 'Failed to upload database' });
+  } finally {
+    fs.promises.unlink(tempPath).catch(() => {});
+  }
 });
 
 // API: Exam Slots
