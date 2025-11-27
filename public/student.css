@@ -339,3 +339,94 @@ footer {
         gap: 5px;
     }
 }
+
+@media (max-width: 600px) {
+    .container {
+        padding: 15px;
+    }
+
+    .seat-layout-wrapper {
+        padding: 12px;
+    }
+
+    .seat-layout {
+        gap: 20px;
+    }
+
+    .seat-section {
+        gap: 16px;
+    }
+
+    .seat-row {
+        gap: 4px;
+    }
+
+    .row-label {
+        width: 42px;
+        font-size: 11px;
+    }
+
+    .seat {
+        width: 52px;
+        height: 52px;
+        font-size: 8px;
+        padding: 3px;
+    }
+
+    .seat-number {
+        font-size: 9px;
+    }
+
+    .seat-name,
+    .seat-grade {
+        font-size: 7px;
+    }
+
+    .seats-group {
+        gap: 4px;
+    }
+}
+
+@media (max-width: 420px) {
+    .seat-layout {
+        gap: 15px;
+    }
+
+    .seat-section {
+        gap: 12px;
+    }
+
+    .seat-row {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 3px;
+    }
+
+    .row-label {
+        width: auto;
+        text-align: center;
+        font-size: 10px;
+        order: -1;
+        margin: 0;
+    }
+
+    .seat-row.label-left .row-label,
+    .seat-row.label-right .row-label {
+        margin: 0;
+    }
+
+    .seat {
+        width: 46px;
+        height: 46px;
+        font-size: 7px;
+    }
+
+    .seat-number {
+        font-size: 8px;
+    }
+
+    .seat-name,
+    .seat-grade {
+        font-size: 6px;
+    }
+}
