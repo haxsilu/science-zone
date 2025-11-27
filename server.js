@@ -4,6 +4,7 @@ const bodyParser = require('body-parser');
 const path = require('path');
 const Database = require('better-sqlite3');
 const bcrypt = require('bcrypt');
+const seatLayoutConfig = require('./seat-layout-config');
 
 const app = express();
 const PORT = process.env.PORT || 5050;
@@ -123,15 +124,16 @@ classes.forEach(className => {
 // Seed exam slots
 const slotsExist = db.prepare('SELECT id FROM exam_slots').get();
 if (!slotsExist) {
+  const totalSeats = seatLayoutConfig.totalSeats;
   db.prepare(`
     INSERT INTO exam_slots (label, start_time, end_time, max_seats) 
     VALUES (?, ?, ?, ?)
-  `).run('Session 1', '2024-12-05T14:00:00', '2024-12-05T17:00:00', 14);
+  `).run('Session 1', '2024-12-05T14:00:00', '2024-12-05T17:00:00', totalSeats);
   
   db.prepare(`
     INSERT INTO exam_slots (label, start_time, end_time, max_seats) 
     VALUES (?, ?, ?, ?)
-  `).run('Session 2', '2024-12-05T17:30:00', '2024-12-05T20:30:00', 14);
+  `).run('Session 2', '2024-12-05T17:30:00', '2024-12-05T20:30:00', totalSeats);
 }
 
 // Middleware: Check authentication
@@ -543,7 +545,7 @@ app.get('/api/exam/slots/:id/layout', requireAuth, (req, res) => {
     WHERE eb.slot_id = ?
   `).all(id);
   
-  res.json({ slot, bookings });
+  res.json({ slot, bookings, layout: seatLayoutConfig });
 });
 
 app.post('/api/exam/book', requireStudent, (req, res) => {
@@ -564,12 +566,8 @@ app.post('/api/exam/book', requireStudent, (req, res) => {
     return res.status(403).json({ error: 'Only Grade 7 and Grade 8 students can book seats' });
   }
   
-  // Validate seat position (1-6 rows, row 1 has 1-4 columns, rows 2-6 have 1-2 columns)
-  if (seat_index < 1 || seat_index > 6) {
-    return res.status(400).json({ error: 'Invalid seat row' });
-  }
-  const maxCols = seat_index === 1 ? 4 : 2;
-  if (seat_pos < 1 || seat_pos > maxCols) {
+  // Validate seat position using layout configuration
+  if (!seatLayoutConfig.isValidSeat(seat_index, seat_pos)) {
     return res.status(400).json({ error: 'Invalid seat position' });
   }
   
@@ -601,8 +599,9 @@ app.post('/api/exam/book', requireStudent, (req, res) => {
     WHERE slot_id = ?
   `).all(slot_id);
   
-  // Check adjacent seats
+  // Check adjacent seats using layout configuration
   const adjacentSeats = [];
+  const maxCols = seatLayoutConfig.getSeatsForRow(seat_index);
   
   // Horizontal neighbors (same row, adjacent columns)
   if (seat_pos > 1) {
@@ -615,28 +614,16 @@ app.post('/api/exam/book', requireStudent, (req, res) => {
   // Vertical neighbors (same column, different row)
   // Check row above
   if (seat_index > 1) {
-    // If we're in row 2-6, we can check row 1 (row 1 has columns 1-4, so columns 1-2 exist)
-    // If we're in row 1, we can check row 0 (doesn't exist, so skip)
-    if (seat_index === 1) {
-      // Row 1: no row above
-    } else {
-      // Row 2-6: check row above (seat_pos 1-2 exist in row 1)
-      if (seat_pos <= 2) {
-        adjacentSeats.push({ row: seat_index - 1, col: seat_pos }); // Above
-      }
+    const aboveRowSeats = seatLayoutConfig.getSeatsForRow(seat_index - 1);
+    if (seat_pos <= aboveRowSeats) {
+      adjacentSeats.push({ row: seat_index - 1, col: seat_pos }); // Above
     }
   }
   // Check row below
-  if (seat_index < 6) {
-    // If we're in row 1, row 2 below only has columns 1-2
-    // If we're in row 2-5, row below has same structure (2 columns)
-    if (seat_index === 1) {
-      // Row 1: check row 2 below (only columns 1-2 exist in row 2)
-      if (seat_pos <= 2) {
-        adjacentSeats.push({ row: seat_index + 1, col: seat_pos }); // Below
-      }
-    } else {
-      // Row 2-5: check row below (same column structure, 2 columns)
+  const maxRow = Math.max(...seatLayoutConfig.rows.map(r => r.row));
+  if (seat_index < maxRow) {
+    const belowRowSeats = seatLayoutConfig.getSeatsForRow(seat_index + 1);
+    if (seat_pos <= belowRowSeats) {
       adjacentSeats.push({ row: seat_index + 1, col: seat_pos }); // Below
     }
   }
