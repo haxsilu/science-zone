@@ -61,13 +61,19 @@ async function loadSessionLayout() {
         // Find student's own booking
         const ownBooking = currentBooking ? bookings.find(b => b.id === currentBooking.id) : null;
         
-        let html = `<h2 style="margin-bottom: 20px;">Seat Layout - ${data.slot.label}</h2>`;
+        let html = `<h2 style="margin-bottom: 20px; text-align: center;">Seat Layout - ${data.slot.label}</h2>`;
+        html += '<div class="seat-layout-wrapper">';
+        html += '<div class="front-indicator">Front</div>';
         html += '<div class="seat-layout">';
         
-        // 6 columns, 2 rows layout
-        for (let row = 1; row <= 2; row++) {
+        // 4 rows, 6 columns layout (24 seats total)
+        for (let row = 1; row <= 4; row++) {
             html += '<div class="seat-row">';
-            for (let col = 1; col <= 6; col++) {
+            html += `<div class="row-label">Row ${row}</div>`;
+            html += '<div class="seats-group">';
+            
+            // Left side (3 seats)
+            for (let col = 1; col <= 3; col++) {
                 const booking = bookings.find(b => b.seat_index === row && b.seat_pos === col);
                 let seatClass = 'empty';
                 let isOwn = false;
@@ -82,11 +88,52 @@ async function loadSessionLayout() {
                 }
                 
                 const seatId = `seat-${row}-${col}`;
-                html += `<div class="seat ${seatClass}" id="${seatId}" onclick="${!booking && !isOwn ? `selectSeat(${row}, ${col})` : ''}" style="cursor: ${booking || isOwn ? 'not-allowed' : 'pointer'}">${row}-${col}</div>`;
+                html += `<div class="seat ${seatClass}" id="${seatId}" onclick="${!booking && !isOwn ? `selectSeat(${row}, ${col})` : ''}" style="cursor: ${booking || isOwn ? 'not-allowed' : 'pointer'}" title="${booking ? `${booking.student_name} (${booking.student_class})` : `Row ${row}, Seat ${col} - Available`}">
+                    <div class="seat-number">${row}-${col}</div>
+                    ${booking ? `<div class="seat-name">${booking.student_name.split(' ')[0]}</div>` : ''}
+                </div>`;
             }
+            
+            // Aisle
+            html += '<div class="aisle"></div>';
+            
+            // Right side (3 seats)
+            for (let col = 4; col <= 6; col++) {
+                const booking = bookings.find(b => b.seat_index === row && b.seat_pos === col);
+                let seatClass = 'empty';
+                let isOwn = false;
+                
+                if (booking) {
+                    if (ownBooking && booking.id === ownBooking.id) {
+                        seatClass = 'own-booking';
+                        isOwn = true;
+                    } else {
+                        seatClass = booking.student_class === 'Grade 7' ? 'grade7' : 'grade8';
+                    }
+                }
+                
+                const seatId = `seat-${row}-${col}`;
+                html += `<div class="seat ${seatClass}" id="${seatId}" onclick="${!booking && !isOwn ? `selectSeat(${row}, ${col})` : ''}" style="cursor: ${booking || isOwn ? 'not-allowed' : 'pointer'}" title="${booking ? `${booking.student_name} (${booking.student_class})` : `Row ${row}, Seat ${col} - Available`}">
+                    <div class="seat-number">${row}-${col}</div>
+                    ${booking ? `<div class="seat-name">${booking.student_name.split(' ')[0]}</div>` : ''}
+                </div>`;
+            }
+            
+            html += '</div>';
             html += '</div>';
         }
         
+        html += '</div>';
+        html += '<div class="legend" style="margin-top: 30px; padding: 20px; background: #1e293b; border-radius: 8px;">';
+        html += '<h3 style="margin-bottom: 15px; color: #60a5fa;">Legend</h3>';
+        html += '<div style="display: flex; gap: 20px; flex-wrap: wrap;">';
+        html += '<div style="display: flex; align-items: center; gap: 10px;"><div class="seat empty" style="width: 40px; height: 40px; cursor: default;"></div><span>Available</span></div>';
+        html += '<div style="display: flex; align-items: center; gap: 10px;"><div class="seat grade7" style="width: 40px; height: 40px; cursor: default;"></div><span>Grade 7</span></div>';
+        html += '<div style="display: flex; align-items: center; gap: 10px;"><div class="seat grade8" style="width: 40px; height: 40px; cursor: default;"></div><span>Grade 8</span></div>';
+        html += '<div style="display: flex; align-items: center; gap: 10px;"><div class="seat own-booking" style="width: 40px; height: 40px; cursor: default;"></div><span>Your Booking</span></div>';
+        html += '<div style="display: flex; align-items: center; gap: 10px;"><div class="seat selected" style="width: 40px; height: 40px; cursor: default; background: #78350f;"></div><span>Selected</span></div>';
+        html += '</div>';
+        html += '</div>';
         html += '</div>';
         container.innerHTML = html;
         
