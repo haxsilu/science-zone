@@ -104,20 +104,16 @@
                 <div id="scan-result" style="margin-top: 20px; padding: 20px; background: #1e293b; border-radius: 8px;"></div>
                 <div class="manual-attendance-card">
                     <h3>Manual Attendance</h3>
-                    <p class="tab-description">Quickly mark attendance without scanning by selecting the class, student, and date.</p>
+                    <p class="tab-description">Look up a student by phone number and mark their attendance without scanning.</p>
+                    <div class="form-group">
+                        <label>Phone Number</label>
+                        <div class="input-with-button">
+                            <input type="text" id="manualAttendancePhone" placeholder="07XXXXXXXX">
+                            <button type="button" class="btn-secondary" onclick="lookupManualAttendanceStudent()">Lookup</button>
+                        </div>
+                    </div>
+                    <div id="manualAttendanceStudentInfo" class="info-panel hidden"></div>
                     <div class="manual-attendance-grid">
-                        <div class="form-group">
-                            <label>Class</label>
-                            <select id="manualAttendanceClass" onchange="loadManualAttendanceStudents()">
-                                <option value="">-- Select Class --</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Student</label>
-                            <select id="manualAttendanceStudent">
-                                <option value="">-- Select Student --</option>
-                            </select>
-                        </div>
                         <div class="form-group">
                             <label>Date</label>
                             <input type="date" id="manualAttendanceDate" value="">
@@ -128,6 +124,38 @@
                         <button class="btn-secondary" onclick="submitManualAttendance(false)">Mark Absent</button>
                     </div>
                     <p id="manualAttendanceStatus" class="status-text"></p>
+                </div>
+                <div class="manual-attendance-card">
+                    <h3>Quick Fee Entry</h3>
+                    <p class="tab-description">Record a student's monthly fee from the same tab after verifying their phone number.</p>
+                    <div class="form-group">
+                        <label>Phone Number</label>
+                        <div class="input-with-button">
+                            <input type="text" id="quickFeePhone" placeholder="07XXXXXXXX">
+                            <button type="button" class="btn-secondary" onclick="lookupQuickFeeStudent()">Lookup</button>
+                        </div>
+                    </div>
+                    <div id="quickFeeStudentInfo" class="info-panel hidden"></div>
+                    <div class="manual-attendance-grid">
+                        <div class="form-group">
+                            <label>Month (YYYY-MM)</label>
+                            <input type="text" id="quickFeeMonth" placeholder="2024-12">
+                        </div>
+                        <div class="form-group">
+                            <label>Amount</label>
+                            <input type="number" id="quickFeeAmount" placeholder="2000">
+                        </div>
+                        <div class="form-group">
+                            <label>Method</label>
+                            <select id="quickFeeMethod">
+                                <option value="cash">Cash</option>
+                                <option value="bank">Bank</option>
+                                <option value="online">Online</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn-primary" onclick="submitQuickFee()">Record Fee</button>
+                    <p id="quickFeeStatus" class="status-text"></p>
                 </div>
             </div>
             
