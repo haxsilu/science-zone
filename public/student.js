@@ -56,7 +56,6 @@ async function loadSessionLayout() {
         const data = await fetch(`/api/exam/slots/${slotId}/layout`).then(r => r.json());
         const container = document.getElementById('seatLayoutContainer');
         
-        const maxSeats = data.slot.max_seats;
         const bookings = data.bookings;
         
         // Find student's own booking
@@ -65,11 +64,11 @@ async function loadSessionLayout() {
         let html = `<h2 style="margin-bottom: 20px;">Seat Layout - ${data.slot.label}</h2>`;
         html += '<div class="seat-layout">';
         
-        for (let i = 1; i <= maxSeats; i++) {
-            const benchBookings = bookings.filter(b => b.seat_index === i);
-            html += '<div class="bench-row">';
-            for (let pos = 1; pos <= 4; pos++) {
-                const booking = benchBookings.find(b => b.seat_pos === pos);
+        // 6 columns, 2 rows layout
+        for (let row = 1; row <= 2; row++) {
+            html += '<div class="seat-row">';
+            for (let col = 1; col <= 6; col++) {
+                const booking = bookings.find(b => b.seat_index === row && b.seat_pos === col);
                 let seatClass = 'empty';
                 let isOwn = false;
                 
@@ -82,8 +81,8 @@ async function loadSessionLayout() {
                     }
                 }
                 
-                const seatId = `seat-${i}-${pos}`;
-                html += `<div class="seat ${seatClass}" id="${seatId}" onclick="${!booking && !isOwn ? `selectSeat(${i}, ${pos})` : ''}" style="cursor: ${booking || isOwn ? 'not-allowed' : 'pointer'}">${i}-${pos}</div>`;
+                const seatId = `seat-${row}-${col}`;
+                html += `<div class="seat ${seatClass}" id="${seatId}" onclick="${!booking && !isOwn ? `selectSeat(${row}, ${col})` : ''}" style="cursor: ${booking || isOwn ? 'not-allowed' : 'pointer'}">${row}-${col}</div>`;
             }
             html += '</div>';
         }
@@ -122,7 +121,7 @@ function selectSeat(seatIndex, seatPos) {
         seatEl.classList.add('selected');
     }
     
-    document.getElementById('selectedSeatInfo').textContent = `Selected Seat: Bench ${seatIndex}, Position ${seatPos}`;
+    document.getElementById('selectedSeatInfo').textContent = `Selected Seat: Row ${seatIndex}, Column ${seatPos}`;
     document.getElementById('bookingControls').style.display = 'block';
 }
 
@@ -133,7 +132,7 @@ async function confirmBooking() {
         return;
     }
     
-    if (!confirm(`Confirm booking for Bench ${selectedSeatIndex}, Position ${selectedSeatPos}?`)) {
+    if (!confirm(`Confirm booking for Row ${selectedSeatIndex}, Column ${selectedSeatPos}?`)) {
         return;
     }
     
@@ -170,7 +169,7 @@ function showCurrentBooking() {
         infoDiv.style.display = 'block';
         document.getElementById('bookingInfo').innerHTML = `
             <strong>Session:</strong> ${currentBooking.label}<br>
-            <strong>Seat:</strong> Bench ${currentBooking.seat_index}, Position ${currentBooking.seat_pos}<br>
+            <strong>Seat:</strong> Row ${currentBooking.seat_index}, Column ${currentBooking.seat_pos}<br>
             <strong>Time:</strong> ${new Date(currentBooking.start_time).toLocaleString()} - ${new Date(currentBooking.end_time).toLocaleString()}
         `;
     }

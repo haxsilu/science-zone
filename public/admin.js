@@ -525,26 +525,47 @@ async function loadExamLayout(slotId) {
         const data = await fetch(`/api/exam/slots/${slotId}/layout`).then(r => r.json());
         const container = document.getElementById('examLayoutContainer');
         
-        const maxSeats = data.slot.max_seats;
         const bookings = data.bookings;
         
-        let html = `<h3>Seat Layout - ${data.slot.label}</h3><div class="seat-layout">`;
+        let html = `<h3>Seat Layout - ${data.slot.label}</h3>`;
+        html += '<div class="seat-layout">';
         
-        for (let i = 1; i <= maxSeats; i++) {
-            const benchBookings = bookings.filter(b => b.seat_index === i);
-            html += '<div class="bench-row">';
-            for (let pos = 1; pos <= 4; pos++) {
-                const booking = benchBookings.find(b => b.seat_pos === pos);
+        // 6 columns, 2 rows layout
+        for (let row = 1; row <= 2; row++) {
+            html += '<div class="seat-row">';
+            for (let col = 1; col <= 6; col++) {
+                const booking = bookings.find(b => b.seat_index === row && b.seat_pos === col);
                 let seatClass = 'empty';
+                let seatContent = `${row}-${col}`;
+                
                 if (booking) {
                     seatClass = booking.student_class === 'Grade 7' ? 'grade7' : 'grade8';
+                    seatContent = `<div style="font-size: 10px; font-weight: bold;">${row}-${col}</div><div style="font-size: 8px; margin-top: 2px; word-break: break-word;">${booking.student_name}</div>`;
                 }
-                html += `<div class="seat ${seatClass}">${i}-${pos}</div>`;
+                
+                html += `<div class="seat ${seatClass}" title="${booking ? `Seat ${row}-${col}: ${booking.student_name} (${booking.student_class})` : `Seat ${row}-${col}: Available`}">${seatContent}</div>`;
             }
             html += '</div>';
         }
         
         html += '</div>';
+        
+        // Add booking details table
+        if (bookings.length > 0) {
+            html += '<div style="margin-top: 30px;"><h3>Booking Details</h3>';
+            html += '<div class="table-container"><table><thead><tr><th>Seat</th><th>Student Name</th><th>Grade</th></tr></thead><tbody>';
+            
+            bookings.forEach(booking => {
+                html += `<tr>
+                    <td>Row ${booking.seat_index}, Column ${booking.seat_pos}</td>
+                    <td>${booking.student_name}</td>
+                    <td>${booking.student_class}</td>
+                </tr>`;
+            });
+            
+            html += '</tbody></table></div></div>';
+        }
+        
         container.innerHTML = html;
     } catch (err) {
         console.error('Exam layout load error:', err);

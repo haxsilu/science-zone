@@ -564,6 +564,11 @@ app.post('/api/exam/book', requireStudent, (req, res) => {
     return res.status(403).json({ error: 'Only Grade 7 and Grade 8 students can book seats' });
   }
   
+  // Validate seat position (1-2 rows, 1-6 columns)
+  if (seat_index < 1 || seat_index > 2 || seat_pos < 1 || seat_pos > 6) {
+    return res.status(400).json({ error: 'Invalid seat position' });
+  }
+  
   // Check if already booked
   const existing = db.prepare(`
     SELECT * FROM exam_bookings 
@@ -583,6 +588,45 @@ app.post('/api/exam/book', requireStudent, (req, res) => {
   
   if (seatTaken) {
     return res.status(400).json({ error: 'Seat already taken' });
+  }
+  
+  // Check grade separation: no same grade students next to each other
+  // Get all bookings for this slot
+  const allBookings = db.prepare(`
+    SELECT seat_index, seat_pos, student_class 
+    FROM exam_bookings 
+    WHERE slot_id = ?
+  `).all(slot_id);
+  
+  // Check adjacent seats
+  const adjacentSeats = [];
+  
+  // Horizontal neighbors (same row, adjacent columns)
+  if (seat_pos > 1) {
+    adjacentSeats.push({ row: seat_index, col: seat_pos - 1 }); // Left
+  }
+  if (seat_pos < 6) {
+    adjacentSeats.push({ row: seat_index, col: seat_pos + 1 }); // Right
+  }
+  
+  // Vertical neighbors (same column, different row)
+  if (seat_index === 1) {
+    adjacentSeats.push({ row: 2, col: seat_pos }); // Below
+  } else {
+    adjacentSeats.push({ row: 1, col: seat_pos }); // Above
+  }
+  
+  // Check if any adjacent seat has the same grade
+  for (const adj of adjacentSeats) {
+    const adjBooking = allBookings.find(
+      b => b.seat_index === adj.row && b.seat_pos === adj.col
+    );
+    
+    if (adjBooking && adjBooking.student_class === student.grade) {
+      return res.status(400).json({ 
+        error: `Cannot book this seat. A ${student.grade} student is already seated next to this position. Grade 7 and Grade 8 students must alternate.` 
+      });
+    }
   }
   
   try {
