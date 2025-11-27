@@ -742,12 +742,9 @@ async function loadExamLayout(slotId) {
                 { row: 3, seats: 4, seatFlow: 'row', labelPosition: 'right', section: 'main' },
                 { row: 4, seats: 4, seatFlow: 'row', labelPosition: 'right', section: 'main' },
                 { row: 5, seats: 4, seatFlow: 'row', labelPosition: 'right', section: 'main' },
-                { row: 6, seats: 4, seatFlow: 'row', labelPosition: 'right', section: 'main' },
-                { row: 7, seats: 4, seatFlow: 'column', labelPosition: 'left', section: 'side' },
-                { row: 8, seats: 4, seatFlow: 'column', labelPosition: 'left', section: 'side' }
+                { row: 6, seats: 4, seatFlow: 'row', labelPosition: 'right', section: 'main' }
             ],
             visualSections: [
-                { id: 'side-column', layout: 'stack', rows: [7, 8] },
                 { id: 'main-block', layout: 'column', rows: [6, 5, 4, 3, 2, 1] }
             ]
         };

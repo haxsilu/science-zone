@@ -434,11 +434,6 @@ input:focus, select:focus {
     gap: 25px;
 }
 
-.seat-section.section-side-column {
-    min-width: 160px;
-    align-items: flex-end;
-}
-
 .seat-section.section-main-block {
     min-width: 520px;
 }
@@ -617,7 +612,6 @@ footer {
         align-items: center;
     }
     
-    .seat-section.section-side-column,
     .seat-section.section-main-block {
         min-width: auto;
         align-items: center;
