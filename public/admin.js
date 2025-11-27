@@ -712,6 +712,16 @@ async function loadFinance() {
 }
 
 // Exam Admin
+function formatExamSlotSummary(slot) {
+    const start = new Date(slot.start_time);
+    const end = new Date(slot.end_time);
+    const dateLabel = start.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
+    const timeOptions = { hour: 'numeric', minute: '2-digit' };
+    const startTime = start.toLocaleTimeString([], timeOptions);
+    const endTime = end.toLocaleTimeString([], timeOptions);
+    return `${dateLabel} · ${startTime} - ${endTime}`;
+}
+
 async function loadExamSlots() {
     try {
         const slots = await fetch('/api/exam/slots').then(r => r.json());
@@ -719,7 +729,7 @@ async function loadExamSlots() {
         container.innerHTML = '<h3>Exam Sessions</h3>' + slots.map(slot => `
             <div style="margin: 15px 0; padding: 15px; background: #1e293b; border-radius: 8px;">
                 <h4>${slot.label}</h4>
-                <p>${new Date(slot.start_time).toLocaleString()} - ${new Date(slot.end_time).toLocaleString()}</p>
+                <p>${formatExamSlotSummary(slot)}</p>
                 <p>Max Seats: ${slot.max_seats}</p>
                 <button class="btn-primary" onclick="loadExamLayout(${slot.id})">View Seat Layout</button>
             </div>

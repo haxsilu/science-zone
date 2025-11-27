@@ -17,7 +17,7 @@ A complete, production-ready Class Management System with Admin and Student role
 - **Exam Admin** - View exam seat bookings and layouts
 
 ### Student Features
-- **Exam Seat Booking** - Book seats for December 5th exam (Grade 7 & 8 only)
+- **Exam Seat Booking** - Book seats for the 2025 Main Exam (Grade 7 & 8 only)
 - View current booking status
 
 ## Technology Stack
