@@ -243,6 +243,47 @@ input:focus, select:focus {
     border-radius: 12px;
 }
 
+.input-with-button {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+}
+
+.input-with-button input {
+    flex: 1;
+}
+
+.input-with-button button {
+    flex-shrink: 0;
+}
+
+.info-panel {
+    margin: 10px 0 20px;
+    padding: 12px 15px;
+    background: #0f172a;
+    border-radius: 10px;
+    border: 1px dashed #334155;
+    line-height: 1.5;
+}
+
+.info-panel p {
+    margin-bottom: 6px;
+    font-size: 14px;
+    color: #e2e8f0;
+}
+
+.info-panel p:last-child {
+    margin-bottom: 0;
+}
+
+.info-panel strong {
+    color: #60a5fa;
+}
+
+.hidden {
+    display: none !important;
+}
+
 .manual-attendance-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

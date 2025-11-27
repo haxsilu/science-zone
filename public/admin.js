@@ -1,11 +1,17 @@
 let qrCodeScanner = null;
-let currentDate = new Date().toISOString().split('T')[0];
+const currentDate = new Date().toISOString().split('T')[0];
+const currentMonth = new Date().toISOString().slice(0, 7);
 document.getElementById('attendanceDate').value = currentDate;
 const manualAttendanceDateInput = document.getElementById('manualAttendanceDate');
 if (manualAttendanceDateInput) {
     manualAttendanceDateInput.value = currentDate;
 }
-let manualAttendanceInitialized = false;
+const quickFeeMonthInput = document.getElementById('quickFeeMonth');
+if (quickFeeMonthInput && !quickFeeMonthInput.value) {
+    quickFeeMonthInput.value = currentMonth;
+}
+let manualAttendanceStudent = null;
+let quickFeeStudent = null;
 
 // Tab switching
 function showTab(tabName) {
@@ -370,67 +376,96 @@ async function handleQRScan(token) {
     }
 }
 
-// Manual Attendance (within QR tab)
-async function initManualAttendanceForm(forceReload = false) {
-    if (manualAttendanceInitialized && !forceReload) {
+// Manual Attendance / Quick Fee helpers (within QR tab)
+function initManualAttendanceForm() {
+    const today = new Date().toISOString().split('T')[0];
+    const manualDate = document.getElementById('manualAttendanceDate');
+    if (manualDate) {
+        manualDate.value = today;
+    }
+    const quickFeeMonth = document.getElementById('quickFeeMonth');
+    if (quickFeeMonth) {
+        quickFeeMonth.value = new Date().toISOString().slice(0, 7);
+    }
+    manualAttendanceStudent = null;
+    quickFeeStudent = null;
+    updateStudentInfoPanel('manualAttendanceStudentInfo', null);
+    updateStudentInfoPanel('quickFeeStudentInfo', null);
+    setManualAttendanceStatus('', '');
+    setQuickFeeStatus('', '');
+}
+
+function normalizePhone(phoneValue) {
+    return (phoneValue || '').trim().replace(/\s+/g, '');
+}
+
+async function fetchStudentByPhone(phoneValue) {
+    const normalized = normalizePhone(phoneValue);
+    if (!normalized) {
+        throw new Error('Phone number is required');
+    }
+    const res = await fetch(`/api/students/by-phone/${encodeURIComponent(normalized)}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        throw new Error(data.error || 'Student lookup failed');
+    }
+    return data;
+}
+
+function updateStudentInfoPanel(elementId, student) {
+    const panel = document.getElementById(elementId);
+    if (!panel) return;
+    
+    if (!student) {
+        panel.innerHTML = '';
+        panel.classList.add('hidden');
         return;
     }
-    await populateManualAttendanceClasses();
-    manualAttendanceInitialized = true;
+    
+    const classLine = student.class_name
+        ? `Class: ${student.class_name}`
+        : '<span style="color:#f87171;">No class linked to this grade</span>';
+    const feeLine = student.monthly_fee ? `<p>Monthly Fee: ${student.monthly_fee} LKR</p>` : '';
+    
+    panel.innerHTML = `
+        <p><strong>${student.name}</strong> (${student.phone})</p>
+        <p>Grade: ${student.grade}</p>
+        <p>${classLine}</p>
+        ${feeLine}
+    `;
+    panel.classList.remove('hidden');
 }
 
-async function populateManualAttendanceClasses() {
-    const classSelect = document.getElementById('manualAttendanceClass');
-    if (!classSelect) return;
+async function lookupManualAttendanceStudent() {
+    const phoneInput = document.getElementById('manualAttendancePhone');
+    if (!phoneInput) return;
     
+    setManualAttendanceStatus('Searching student...', 'pending');
     try {
-        const classes = await fetch('/api/classes').then(r => r.json());
-        classSelect.innerHTML = '<option value="">-- Select Class --</option>' + 
-            classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-        resetManualAttendanceStudents();
+        const student = await fetchStudentByPhone(phoneInput.value);
+        manualAttendanceStudent = student;
+        updateStudentInfoPanel('manualAttendanceStudentInfo', student);
+        setManualAttendanceStatus('Student ready. Choose a date to mark attendance.', 'success');
     } catch (err) {
-        console.error('Manual attendance class load error:', err);
-        setManualAttendanceStatus('Unable to load classes.', 'error');
-    }
-}
-
-function resetManualAttendanceStudents() {
-    const studentSelect = document.getElementById('manualAttendanceStudent');
-    if (studentSelect) {
-        studentSelect.innerHTML = '<option value="">-- Select Student --</option>';
-    }
-}
-
-async function loadManualAttendanceStudents() {
-    const classId = document.getElementById('manualAttendanceClass').value;
-    const studentSelect = document.getElementById('manualAttendanceStudent');
-    
-    if (!classId) {
-        resetManualAttendanceStudents();
-        return;
-    }
-    
-    try {
-        const students = await fetch(`/api/classes/${classId}/students`).then(r => r.json());
-        if (!students.length) {
-            studentSelect.innerHTML = '<option value="">No students enrolled</option>';
-            return;
-        }
-        studentSelect.innerHTML = '<option value="">-- Select Student --</option>' + 
-            students.map(s => `<option value="${s.id}">${s.name} (${s.phone})</option>`).join('');
-    } catch (err) {
-        console.error('Manual attendance student load error:', err);
-        setManualAttendanceStatus('Unable to load students.', 'error');
+        manualAttendanceStudent = null;
+        updateStudentInfoPanel('manualAttendanceStudentInfo', null);
+        setManualAttendanceStatus(err.message, 'error');
     }
 }
 
 async function submitManualAttendance(present) {
-    const classId = document.getElementById('manualAttendanceClass').value;
-    const studentId = document.getElementById('manualAttendanceStudent').value;
     const date = document.getElementById('manualAttendanceDate').value;
     
-    if (!classId || !studentId || !date) {
-        setManualAttendanceStatus('Select a class, student, and date first.', 'error');
+    if (!manualAttendanceStudent) {
+        setManualAttendanceStatus('Lookup a student first.', 'error');
+        return;
+    }
+    if (!manualAttendanceStudent.class_id) {
+        setManualAttendanceStatus('No class is linked to this student\'s grade.', 'error');
+        return;
+    }
+    if (!date) {
+        setManualAttendanceStatus('Select a date before marking attendance.', 'error');
         return;
     }
     
@@ -440,8 +475,8 @@ async function submitManualAttendance(present) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                student_id: parseInt(studentId),
-                class_id: parseInt(classId),
+                student_id: manualAttendanceStudent.id,
+                class_id: manualAttendanceStudent.class_id,
                 date,
                 present: !!present
             })
@@ -457,6 +492,89 @@ function setManualAttendanceStatus(message, state) {
     if (!statusEl) return;
     statusEl.textContent = message || '';
     statusEl.dataset.status = state || '';
+}
+
+async function lookupQuickFeeStudent() {
+    const phoneInput = document.getElementById('quickFeePhone');
+    if (!phoneInput) return;
+    
+    setQuickFeeStatus('Searching student...', 'pending');
+    try {
+        const student = await fetchStudentByPhone(phoneInput.value);
+        quickFeeStudent = student;
+        updateStudentInfoPanel('quickFeeStudentInfo', student);
+        if (student.monthly_fee) {
+            document.getElementById('quickFeeAmount').value = student.monthly_fee;
+        }
+        const monthInput = document.getElementById('quickFeeMonth');
+        if (monthInput && !monthInput.value) {
+            monthInput.value = new Date().toISOString().slice(0, 7);
+        }
+        setQuickFeeStatus('Student ready for fee entry.', 'success');
+    } catch (err) {
+        quickFeeStudent = null;
+        updateStudentInfoPanel('quickFeeStudentInfo', null);
+        setQuickFeeStatus(err.message, 'error');
+    }
+}
+
+function setQuickFeeStatus(message, state) {
+    const statusEl = document.getElementById('quickFeeStatus');
+    if (!statusEl) return;
+    statusEl.textContent = message || '';
+    statusEl.dataset.status = state || '';
+}
+
+async function submitQuickFee() {
+    if (!quickFeeStudent) {
+        setQuickFeeStatus('Lookup a student first.', 'error');
+        return;
+    }
+    if (!quickFeeStudent.class_id) {
+        setQuickFeeStatus('No class is linked to this student\'s grade.', 'error');
+        return;
+    }
+    
+    const monthInput = document.getElementById('quickFeeMonth');
+    const amountInput = document.getElementById('quickFeeAmount');
+    const methodSelect = document.getElementById('quickFeeMethod');
+    
+    const month = (monthInput.value || '').trim();
+    if (!month) {
+        setQuickFeeStatus('Enter the month in YYYY-MM format.', 'error');
+        return;
+    }
+    if (!/^\d{4}-\d{2}$/.test(month)) {
+        setQuickFeeStatus('Month must follow YYYY-MM (e.g., 2024-12).', 'error');
+        return;
+    }
+    
+    const amountValue = amountInput.value || quickFeeStudent.monthly_fee;
+    const amount = parseInt(amountValue, 10);
+    if (!amount || amount <= 0) {
+        setQuickFeeStatus('Enter a valid amount.', 'error');
+        return;
+    }
+    
+    const method = methodSelect.value || 'cash';
+    
+    setQuickFeeStatus('Recording payment...', 'pending');
+    try {
+        await fetch('/api/payments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                student_id: quickFeeStudent.id,
+                class_id: quickFeeStudent.class_id,
+                month,
+                amount,
+                method
+            })
+        });
+        setQuickFeeStatus('Payment recorded successfully.', 'success');
+    } catch (err) {
+        setQuickFeeStatus(`Error: ${err.message}`, 'error');
+    }
 }
 
 // Attendance

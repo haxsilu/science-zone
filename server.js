@@ -8,7 +8,8 @@ const bcrypt = require('bcrypt');
 const QRCode = require('qrcode');
 const archiver = require('archiver');
 const multer = require('multer');
-const Jimp = require('jimp');
+const jimpModule = require('jimp');
+const Jimp = jimpModule.Jimp || jimpModule.default || jimpModule;
 const seatLayoutConfig = require('./seat-layout-config');
 
 const app = express();
@@ -117,6 +118,13 @@ app.use(session({
 
 // Initialize Database
 let db = new Database(DB_FILE);
+
+const findClassByName = (className) => {
+  if (!className) {
+    return null;
+  }
+  return db.prepare('SELECT * FROM classes WHERE name = ?').get(className);
+};
 
 const setupDatabase = (database) => {
   database.exec(`
@@ -352,6 +360,40 @@ app.get('/student', requireStudent, (req, res) => {
 app.get('/api/students', requireAdmin, (req, res) => {
   const students = db.prepare('SELECT * FROM students ORDER BY created_at DESC').all();
   res.json(students);
+});
+
+app.get('/api/students/by-phone/:phone', requireAdmin, (req, res) => {
+  const rawPhone = (req.params.phone || '').trim();
+  if (!rawPhone) {
+    return res.status(400).json({ error: 'Phone number is required' });
+  }
+
+  const compactPhone = rawPhone.replace(/\s+/g, '');
+  const numericPhone = rawPhone.replace(/[^0-9+]/g, '');
+
+  let student = db.prepare('SELECT * FROM students WHERE phone = ?').get(rawPhone);
+  if (!student && compactPhone !== rawPhone) {
+    student = db.prepare('SELECT * FROM students WHERE phone = ?').get(compactPhone);
+  }
+  if (!student && numericPhone && numericPhone !== rawPhone && numericPhone !== compactPhone) {
+    student = db.prepare('SELECT * FROM students WHERE phone = ?').get(numericPhone);
+  }
+
+  if (!student) {
+    return res.status(404).json({ error: 'Student not found for that phone number' });
+  }
+
+  const classRecord = findClassByName(student.grade);
+  res.json({
+    id: student.id,
+    name: student.name,
+    phone: student.phone,
+    grade: student.grade,
+    qr_token: student.qr_token,
+    class_id: classRecord ? classRecord.id : null,
+    class_name: classRecord ? classRecord.name : null,
+    monthly_fee: classRecord ? classRecord.monthly_fee : null
+  });
 });
 
 app.post('/api/students', requireAdmin, async (req, res) => {
