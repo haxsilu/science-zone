@@ -95,6 +95,21 @@
             border-color: #2563eb;
         }
         
+        select {
+            width: 100%;
+            padding: 12px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            color: #e2e8f0;
+            font-size: 14px;
+        }
+        
+        select:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+        
         .submit-btn {
             width: 100%;
             padding: 12px;
@@ -163,17 +178,27 @@
         
         <div id="studentForm" class="login-form">
             <button class="login-btn back-btn" onclick="showButtons()">← Back</button>
-            <h2 style="margin-bottom: 20px; text-align: center;">Student Login</h2>
+            <h2 style="margin-bottom: 20px; text-align: center;">Student Registration & Booking</h2>
             <form onsubmit="login(event, 'student')">
                 <div class="form-group">
-                    <label>Username (Phone Number)</label>
-                    <input type="text" name="username" required>
+                    <label>Name</label>
+                    <input type="text" name="name" required>
                 </div>
                 <div class="form-group">
-                    <label>Password</label>
-                    <input type="password" name="password" required>
+                    <label>Phone Number</label>
+                    <input type="text" name="phone" required>
                 </div>
-                <button type="submit" class="submit-btn">Login</button>
+                <div class="form-group">
+                    <label>Grade</label>
+                    <select name="grade" required>
+                        <option value="">-- Select Grade --</option>
+                        <option value="Grade 6">Grade 6</option>
+                        <option value="Grade 7">Grade 7</option>
+                        <option value="Grade 8">Grade 8</option>
+                        <option value="O/L">O/L</option>
+                    </select>
+                </div>
+                <button type="submit" class="submit-btn">Continue to Booking</button>
                 <div id="studentError" class="error"></div>
             </form>
         </div>
@@ -203,28 +228,45 @@
             event.preventDefault();
             const form = event.target;
             const formData = new FormData(form);
-            const username = formData.get('username');
-            const password = formData.get('password');
-            
             const errorDiv = role === 'admin' ? document.getElementById('adminError') : document.getElementById('studentError');
             
             try {
-                const res = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password, role })
-                });
-                
-                const data = await res.json();
-                
-                if (res.ok) {
-                    if (role === 'admin') {
+                if (role === 'admin') {
+                    const username = formData.get('username');
+                    const password = formData.get('password');
+                    
+                    const res = await fetch('/api/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, password, role })
+                    });
+                    
+                    const data = await res.json();
+                    
+                    if (res.ok) {
                         window.location.href = '/admin';
                     } else {
-                        window.location.href = '/student';
+                        errorDiv.textContent = data.error || 'Login failed';
                     }
                 } else {
-                    errorDiv.textContent = data.error || 'Login failed';
+                    // Student registration/login
+                    const name = formData.get('name');
+                    const phone = formData.get('phone');
+                    const grade = formData.get('grade');
+                    
+                    const res = await fetch('/api/student/register-login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, phone, grade })
+                    });
+                    
+                    const data = await res.json();
+                    
+                    if (res.ok) {
+                        window.location.href = '/student';
+                    } else {
+                        errorDiv.textContent = data.error || 'Registration failed';
+                    }
                 }
             } catch (err) {
                 errorDiv.textContent = 'Network error. Please try again.';
