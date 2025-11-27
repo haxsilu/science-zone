@@ -605,7 +605,6 @@ app.post('/api/exam/book', requireStudent, (req, res) => {
   const adjacentSeats = [];
   
   // Horizontal neighbors (same row, adjacent columns)
-  const maxCols = seat_index === 1 ? 4 : 2;
   if (seat_pos > 1) {
     adjacentSeats.push({ row: seat_index, col: seat_pos - 1 }); // Left
   }
