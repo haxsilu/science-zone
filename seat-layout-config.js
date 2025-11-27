@@ -9,20 +9,11 @@ const baseRows = [
   { row: 4, seats: 4, section: 'main', seatFlow: 'row', labelPosition: 'right' },
   { row: 5, seats: 4, section: 'main', seatFlow: 'row', labelPosition: 'right' },
   { row: 6, seats: 4, section: 'main', seatFlow: 'row', labelPosition: 'right' },
-  // Side column (left-hand side in the diagram)
-  { row: 7, seats: 4, section: 'side', seatFlow: 'column', labelPosition: 'left' },
-  { row: 8, seats: 4, section: 'side', seatFlow: 'column', labelPosition: 'left' }
 ];
 
 const rows = baseRows.sort((a, b) => a.row - b.row);
 
 const visualSections = [
-  {
-    id: 'side-column',
-    layout: 'stack',
-    rows: [7, 8],
-    description: 'Left column for Grade 7 & 8'
-  },
   {
     id: 'main-block',
     layout: 'column',
