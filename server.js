@@ -8,8 +8,13 @@ const bcrypt = require('bcrypt');
 const QRCode = require('qrcode');
 const archiver = require('archiver');
 const multer = require('multer');
-const jimpModule = require('jimp');
-const Jimp = jimpModule.Jimp || jimpModule.default || jimpModule;
+const {
+  Jimp,
+  loadFont,
+  HorizontalAlign,
+  VerticalAlign
+} = require('jimp');
+const { SANS_16_BLACK } = require('@jimp/plugin-print/fonts');
 const seatLayoutConfig = require('./seat-layout-config');
 
 const app = express();
@@ -57,29 +62,34 @@ const writeStudentQr = async (student) => {
   const qrBuffer = await QRCode.toBuffer(student.qr_token, QR_OPTIONS);
   const qrImage = await Jimp.read(qrBuffer);
   const labelHeight = 60;
-  const width = qrImage.getWidth();
-  const height = qrImage.getHeight() + labelHeight;
-  const labeledImage = new Jimp(width, height, 0xffffffff);
+  const qrWidth = qrImage.bitmap.width;
+  const qrHeight = qrImage.bitmap.height;
+  const height = qrHeight + labelHeight;
+  const labeledImage = await new Jimp({
+    width: qrWidth,
+    height,
+    color: 0xffffffff
+  });
 
   labeledImage.composite(qrImage, 0, 0);
 
   const font = await getQrLabelFont();
   const label = (student.name || `Student ${student.id}`).trim();
 
-  labeledImage.print(
+  labeledImage.print({
     font,
-    0,
-    qrImage.getHeight(),
-    {
+    x: 0,
+    y: qrHeight,
+    text: {
       text: label,
-      alignmentX: Jimp.HORIZONTAL_ALIGN_CENTER,
-      alignmentY: Jimp.VERTICAL_ALIGN_MIDDLE
+      alignmentX: HorizontalAlign.CENTER,
+      alignmentY: VerticalAlign.MIDDLE
     },
-    width,
-    labelHeight
-  );
+    maxWidth: qrWidth,
+    maxHeight: labelHeight
+  });
 
-  await labeledImage.writeAsync(qrPath);
+  await labeledImage.write(qrPath);
   return qrPath;
 };
 
@@ -99,7 +109,7 @@ const buildQrDownloadName = (student) => `${sanitizeFileComponent(student?.name)
 let qrFontPromise = null;
 const getQrLabelFont = () => {
   if (!qrFontPromise) {
-    qrFontPromise = Jimp.loadFont(Jimp.FONT_SANS_16_BLACK);
+    qrFontPromise = loadFont(SANS_16_BLACK);
   }
   return qrFontPromise;
 };
