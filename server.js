@@ -182,6 +182,58 @@ app.post('/api/login', async (req, res) => {
   res.json({ success: true, role: user.role });
 });
 
+// Student registration/login endpoint
+app.post('/api/student/register-login', async (req, res) => {
+  const { name, phone, grade } = req.body;
+  
+  if (!name || !phone || !grade) {
+    return res.status(400).json({ error: 'Missing required fields: name, phone, and grade are required' });
+  }
+  
+  try {
+    // Check if student exists by phone number
+    let student = db.prepare('SELECT * FROM students WHERE phone = ?').get(phone);
+    
+    if (student) {
+      // Update existing student info if needed
+      db.prepare('UPDATE students SET name = ?, grade = ? WHERE id = ?').run(name, grade, student.id);
+      student = db.prepare('SELECT * FROM students WHERE id = ?').get(student.id);
+    } else {
+      // Create new student
+      const qrToken = `STU-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const result = db.prepare('INSERT INTO students (name, phone, grade, qr_token) VALUES (?, ?, ?, ?)').run(name, phone, grade, qrToken);
+      student = db.prepare('SELECT * FROM students WHERE id = ?').get(result.lastInsertRowid);
+    }
+    
+    // Check if user account exists
+    let user = db.prepare('SELECT * FROM users WHERE student_id = ?').get(student.id);
+    
+    if (!user) {
+      // Create user account with default password (phone number as username)
+      const defaultPassword = '1234';
+      const passwordHash = await bcrypt.hash(defaultPassword, 10);
+      db.prepare('INSERT INTO users (username, password_hash, role, student_id) VALUES (?, ?, ?, ?)').run(phone, passwordHash, 'student', student.id);
+      user = db.prepare('SELECT * FROM users WHERE student_id = ?').get(student.id);
+    } else {
+      // Update username if phone changed
+      if (user.username !== phone) {
+        db.prepare('UPDATE users SET username = ? WHERE id = ?').run(phone, user.id);
+        user = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
+      }
+    }
+    
+    // Set session
+    req.session.userId = user.id;
+    req.session.role = 'student';
+    req.session.studentId = student.id;
+    
+    res.json({ success: true, role: 'student' });
+  } catch (err) {
+    console.error('Student registration error:', err);
+    res.status(400).json({ error: err.message || 'Registration failed' });
+  }
+});
+
 app.post('/api/logout', (req, res) => {
   req.session.destroy();
   res.json({ success: true });
