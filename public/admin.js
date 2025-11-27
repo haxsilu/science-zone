@@ -1,6 +1,11 @@
 let qrCodeScanner = null;
 let currentDate = new Date().toISOString().split('T')[0];
 document.getElementById('attendanceDate').value = currentDate;
+const manualAttendanceDateInput = document.getElementById('manualAttendanceDate');
+if (manualAttendanceDateInput) {
+    manualAttendanceDateInput.value = currentDate;
+}
+let manualAttendanceInitialized = false;
 
 // Tab switching
 function showTab(tabName) {
@@ -29,10 +34,9 @@ function showTab(tabName) {
         loadStudents();
     } else if (tabName === 'classes') {
         loadClasses();
-    } else if (tabName === 'enrollments') {
-        loadEnrollments();
     } else if (tabName === 'qr-scanner') {
         initQRScanner();
+        initManualAttendanceForm();
     } else if (tabName === 'attendance') {
         loadAttendance();
     } else if (tabName === 'payments') {
@@ -47,6 +51,8 @@ function showTab(tabName) {
         loadFinance();
     } else if (tabName === 'exam-admin') {
         loadExamSlots();
+    } else if (tabName === 'settings') {
+        resetSettingsStatus();
     }
 }
 
@@ -298,65 +304,6 @@ async function saveClass(event) {
     }
 }
 
-// Enrollments
-async function loadEnrollments() {
-    const classes = await fetch('/api/classes').then(r => r.json());
-    const students = await fetch('/api/students').then(r => r.json());
-    
-    const classSelect = document.getElementById('enrollClassSelect');
-    classSelect.innerHTML = '<option value="">-- Select Class --</option>' + 
-        classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-    
-    const studentSelect = document.getElementById('enrollStudentSelect');
-    studentSelect.innerHTML = '<option value="">-- Select Student --</option>' + 
-        students.map(s => `<option value="${s.id}">${s.name} (${s.phone})</option>`).join('');
-}
-
-async function loadClassStudents() {
-    const classId = document.getElementById('enrollClassSelect').value;
-    if (!classId) {
-        document.getElementById('enrolledStudentsTable').innerHTML = '';
-        return;
-    }
-    
-    try {
-        const students = await fetch(`/api/classes/${classId}/students`).then(r => r.json());
-        const tbody = document.getElementById('enrolledStudentsTable');
-        tbody.innerHTML = students.map(s => `
-            <tr>
-                <td>${s.id}</td>
-                <td>${s.name}</td>
-                <td>${s.phone}</td>
-                <td>${s.grade}</td>
-            </tr>
-        `).join('');
-    } catch (err) {
-        console.error('Class students load error:', err);
-    }
-}
-
-async function enrollStudent() {
-    const studentId = document.getElementById('enrollStudentSelect').value;
-    const classId = document.getElementById('enrollClassSelect').value;
-    
-    if (!studentId || !classId) {
-        alert('Please select both student and class');
-        return;
-    }
-    
-    try {
-        await fetch('/api/enrollments', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ student_id: parseInt(studentId), class_id: parseInt(classId) })
-        });
-        alert('Student enrolled successfully');
-        loadClassStudents();
-    } catch (err) {
-        alert('Error enrolling student: ' + err.message);
-    }
-}
-
 // QR Scanner
 function initQRScanner() {
     if (qrCodeScanner) {
@@ -421,6 +368,95 @@ async function handleQRScan(token) {
     } catch (err) {
         document.getElementById('scan-result').innerHTML = `<p style="color: #f87171;">Error: ${err.message}</p>`;
     }
+}
+
+// Manual Attendance (within QR tab)
+async function initManualAttendanceForm(forceReload = false) {
+    if (manualAttendanceInitialized && !forceReload) {
+        return;
+    }
+    await populateManualAttendanceClasses();
+    manualAttendanceInitialized = true;
+}
+
+async function populateManualAttendanceClasses() {
+    const classSelect = document.getElementById('manualAttendanceClass');
+    if (!classSelect) return;
+    
+    try {
+        const classes = await fetch('/api/classes').then(r => r.json());
+        classSelect.innerHTML = '<option value="">-- Select Class --</option>' + 
+            classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+        resetManualAttendanceStudents();
+    } catch (err) {
+        console.error('Manual attendance class load error:', err);
+        setManualAttendanceStatus('Unable to load classes.', 'error');
+    }
+}
+
+function resetManualAttendanceStudents() {
+    const studentSelect = document.getElementById('manualAttendanceStudent');
+    if (studentSelect) {
+        studentSelect.innerHTML = '<option value="">-- Select Student --</option>';
+    }
+}
+
+async function loadManualAttendanceStudents() {
+    const classId = document.getElementById('manualAttendanceClass').value;
+    const studentSelect = document.getElementById('manualAttendanceStudent');
+    
+    if (!classId) {
+        resetManualAttendanceStudents();
+        return;
+    }
+    
+    try {
+        const students = await fetch(`/api/classes/${classId}/students`).then(r => r.json());
+        if (!students.length) {
+            studentSelect.innerHTML = '<option value="">No students enrolled</option>';
+            return;
+        }
+        studentSelect.innerHTML = '<option value="">-- Select Student --</option>' + 
+            students.map(s => `<option value="${s.id}">${s.name} (${s.phone})</option>`).join('');
+    } catch (err) {
+        console.error('Manual attendance student load error:', err);
+        setManualAttendanceStatus('Unable to load students.', 'error');
+    }
+}
+
+async function submitManualAttendance(present) {
+    const classId = document.getElementById('manualAttendanceClass').value;
+    const studentId = document.getElementById('manualAttendanceStudent').value;
+    const date = document.getElementById('manualAttendanceDate').value;
+    
+    if (!classId || !studentId || !date) {
+        setManualAttendanceStatus('Select a class, student, and date first.', 'error');
+        return;
+    }
+    
+    setManualAttendanceStatus('Saving attendance...', 'pending');
+    try {
+        await fetch('/api/attendance/manual', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                student_id: parseInt(studentId),
+                class_id: parseInt(classId),
+                date,
+                present: !!present
+            })
+        });
+        setManualAttendanceStatus(present ? 'Marked as present.' : 'Marked as absent.', 'success');
+    } catch (err) {
+        setManualAttendanceStatus(`Error: ${err.message}`, 'error');
+    }
+}
+
+function setManualAttendanceStatus(message, state) {
+    const statusEl = document.getElementById('manualAttendanceStatus');
+    if (!statusEl) return;
+    statusEl.textContent = message || '';
+    statusEl.dataset.status = state || '';
 }
 
 // Attendance
@@ -715,11 +751,73 @@ window.onclick = function(event) {
     }
 }
 
+// Settings helpers
+function resetSettingsStatus() {
+    const statusEl = document.getElementById('databaseUploadStatus');
+    if (statusEl) {
+        statusEl.textContent = '';
+        statusEl.dataset.status = '';
+    }
+}
+
+async function downloadDatabase() {
+    try {
+        const res = await fetch('/api/settings/database/download');
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || 'Unable to download database');
+        }
+        const blob = await res.blob();
+        const filename = getFilenameFromDisposition(res.headers.get('content-disposition'), `class-manager-${Date.now()}.db`);
+        downloadBlob(blob, filename);
+    } catch (err) {
+        alert('Error downloading database: ' + err.message);
+    }
+}
+
+async function uploadDatabase() {
+    const input = document.getElementById('databaseUploadInput');
+    const statusEl = document.getElementById('databaseUploadStatus');
+    if (!input || !input.files.length) {
+        setStatus(statusEl, 'Please choose a .db file first.', 'error');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('dbFile', input.files[0]);
+    setStatus(statusEl, 'Uploading database...', 'pending');
+    
+    try {
+        const res = await fetch('/api/settings/database/upload', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            throw new Error(data.error || 'Upload failed');
+        }
+        let message = 'Database restored successfully.';
+        if (data.backup) {
+            message += ` Backup saved as ${data.backup}.`;
+        }
+        setStatus(statusEl, message, 'success');
+        input.value = '';
+    } catch (err) {
+        setStatus(statusEl, `Error: ${err.message}`, 'error');
+    }
+}
+
+function setStatus(element, message, state) {
+    if (!element) return;
+    element.textContent = message || '';
+    element.dataset.status = state || '';
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     loadDashboard();
     loadStudents();
     loadClasses();
-    loadEnrollments();
     loadPayments();
+    initManualAttendanceForm();
 });

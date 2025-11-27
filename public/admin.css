@@ -230,6 +230,67 @@ input:focus, select:focus {
     margin-bottom: 20px;
 }
 
+.tab-description {
+    color: #94a3b8;
+    margin-bottom: 15px;
+    font-size: 14px;
+}
+
+.manual-attendance-card {
+    margin-top: 30px;
+    background: #1e293b;
+    padding: 20px;
+    border-radius: 12px;
+}
+
+.manual-attendance-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 15px;
+}
+
+.manual-attendance-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+.status-text {
+    min-height: 20px;
+    margin-top: 12px;
+    font-size: 14px;
+    color: #94a3b8;
+}
+
+.status-text[data-status="success"] {
+    color: #4ade80;
+}
+
+.status-text[data-status="error"] {
+    color: #f87171;
+}
+
+.status-text[data-status="pending"] {
+    color: #fbbf24;
+}
+
+.settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.settings-card {
+    background: #1e293b;
+    padding: 20px;
+    border-radius: 12px;
+}
+
+.settings-card input[type="file"] {
+    margin: 15px 0;
+}
+
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
