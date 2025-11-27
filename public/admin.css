@@ -276,35 +276,105 @@ input:focus, select:focus {
     border-radius: 8px;
 }
 
+.seat-layout-wrapper {
+    margin-top: 20px;
+    padding: 30px;
+    background: #0f172a;
+    border-radius: 12px;
+    position: relative;
+}
+
+.front-indicator {
+    text-align: center;
+    color: #60a5fa;
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 20px;
+    padding: 10px;
+    background: #1e293b;
+    border-radius: 6px;
+}
+
 .seat-layout {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    margin-top: 20px;
+    gap: 15px;
+    max-width: 800px;
+    margin: 0 auto;
 }
 
-.bench-row,
 .seat-row {
     display: flex;
-    gap: 5px;
-    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
+
+.row-label {
+    width: 60px;
+    color: #cbd5e1;
+    font-weight: 600;
+    font-size: 14px;
+    text-align: right;
+}
+
+.seats-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex: 1;
+}
+
+.aisle {
+    width: 30px;
+    height: 100%;
+    background: repeating-linear-gradient(
+        90deg,
+        #334155 0px,
+        #334155 2px,
+        transparent 2px,
+        transparent 4px
+    );
+    margin: 0 10px;
 }
 
 .seat {
-    width: 80px;
-    height: 80px;
-    border-radius: 6px;
+    width: 90px;
+    height: 90px;
+    border-radius: 8px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
     cursor: default;
     border: 2px solid transparent;
     text-align: center;
     padding: 4px;
     line-height: 1.2;
+}
+
+.seat-number {
+    font-size: 12px;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 2px;
+}
+
+.seat-name {
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.9);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+    margin-bottom: 2px;
+}
+
+.seat-grade {
+    font-size: 8px;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 500;
 }
 
 .seat.empty {
@@ -359,5 +429,45 @@ footer {
     
     th, td {
         padding: 8px;
+    }
+    
+    .seat-layout-wrapper {
+        padding: 15px;
+    }
+    
+    .seat {
+        width: 70px;
+        height: 70px;
+        font-size: 9px;
+    }
+    
+    .seat-number {
+        font-size: 10px;
+    }
+    
+    .seat-name {
+        font-size: 8px;
+    }
+    
+    .seat-grade {
+        font-size: 7px;
+    }
+    
+    .row-label {
+        width: 50px;
+        font-size: 12px;
+    }
+    
+    .aisle {
+        width: 20px;
+        margin: 0 5px;
+    }
+    
+    .seats-group {
+        gap: 5px;
+    }
+    
+    .seat-row {
+        gap: 5px;
     }
 }

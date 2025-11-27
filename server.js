@@ -564,8 +564,8 @@ app.post('/api/exam/book', requireStudent, (req, res) => {
     return res.status(403).json({ error: 'Only Grade 7 and Grade 8 students can book seats' });
   }
   
-  // Validate seat position (1-2 rows, 1-6 columns)
-  if (seat_index < 1 || seat_index > 2 || seat_pos < 1 || seat_pos > 6) {
+  // Validate seat position (1-4 rows, 1-6 columns)
+  if (seat_index < 1 || seat_index > 4 || seat_pos < 1 || seat_pos > 6) {
     return res.status(400).json({ error: 'Invalid seat position' });
   }
   

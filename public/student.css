@@ -93,37 +93,99 @@ select:focus {
     cursor: not-allowed;
 }
 
+.seat-layout-wrapper {
+    margin-top: 20px;
+    padding: 30px;
+    background: #0f172a;
+    border-radius: 12px;
+    position: relative;
+}
+
+.front-indicator {
+    text-align: center;
+    color: #60a5fa;
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 20px;
+    padding: 10px;
+    background: #1e293b;
+    border-radius: 6px;
+}
+
 .seat-layout {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    margin-top: 20px;
-    padding: 20px;
-    background: #0f172a;
-    border-radius: 12px;
+    gap: 15px;
+    max-width: 800px;
+    margin: 0 auto;
 }
 
-.bench-row,
 .seat-row {
     display: flex;
-    gap: 5px;
-    justify-content: center;
-    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.row-label {
+    width: 60px;
+    color: #cbd5e1;
+    font-weight: 600;
+    font-size: 14px;
+    text-align: right;
+}
+
+.seats-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex: 1;
+}
+
+.aisle {
+    width: 30px;
+    height: 100%;
+    background: repeating-linear-gradient(
+        90deg,
+        #334155 0px,
+        #334155 2px,
+        transparent 2px,
+        transparent 4px
+    );
+    margin: 0 10px;
 }
 
 .seat {
-    width: 70px;
-    height: 70px;
-    border-radius: 6px;
+    width: 80px;
+    height: 80px;
+    border-radius: 8px;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     cursor: pointer;
     border: 2px solid transparent;
     transition: all 0.2s;
     text-align: center;
+    padding: 4px;
+    position: relative;
+}
+
+.seat-number {
+    font-size: 12px;
+    font-weight: 700;
+    color: white;
+}
+
+.seat-name {
+    font-size: 9px;
+    margin-top: 2px;
+    color: rgba(255, 255, 255, 0.9);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
 }
 
 .seat.empty {
@@ -173,13 +235,39 @@ footer {
         text-align: center;
     }
     
+    .seat-layout-wrapper {
+        padding: 15px;
+    }
+    
     .seat {
-        width: 50px;
-        height: 50px;
+        width: 60px;
+        height: 60px;
+        font-size: 9px;
+    }
+    
+    .seat-number {
         font-size: 10px;
     }
     
-    .bench-row {
-        gap: 3px;
+    .seat-name {
+        font-size: 8px;
+    }
+    
+    .row-label {
+        width: 50px;
+        font-size: 12px;
+    }
+    
+    .aisle {
+        width: 20px;
+        margin: 0 5px;
+    }
+    
+    .seats-group {
+        gap: 5px;
+    }
+    
+    .seat-row {
+        gap: 5px;
     }
 }

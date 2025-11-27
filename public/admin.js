@@ -527,27 +527,60 @@ async function loadExamLayout(slotId) {
         
         const bookings = data.bookings;
         
-        let html = `<h3>Seat Layout - ${data.slot.label}</h3>`;
+        let html = `<h3 style="text-align: center; margin-bottom: 20px;">Seat Layout - ${data.slot.label}</h3>`;
+        html += '<div class="seat-layout-wrapper">';
+        html += '<div class="front-indicator">Front</div>';
         html += '<div class="seat-layout">';
         
-        // 6 columns, 2 rows layout
-        for (let row = 1; row <= 2; row++) {
+        // 4 rows, 6 columns layout (24 seats total)
+        for (let row = 1; row <= 4; row++) {
             html += '<div class="seat-row">';
-            for (let col = 1; col <= 6; col++) {
+            html += `<div class="row-label">Row ${row}</div>`;
+            html += '<div class="seats-group">';
+            
+            // Left side (3 seats)
+            for (let col = 1; col <= 3; col++) {
                 const booking = bookings.find(b => b.seat_index === row && b.seat_pos === col);
                 let seatClass = 'empty';
-                let seatContent = `${row}-${col}`;
+                let seatContent = `<div class="seat-number">${row}-${col}</div>`;
                 
                 if (booking) {
                     seatClass = booking.student_class === 'Grade 7' ? 'grade7' : 'grade8';
-                    seatContent = `<div style="font-size: 10px; font-weight: bold;">${row}-${col}</div><div style="font-size: 8px; margin-top: 2px; word-break: break-word;">${booking.student_name}</div>`;
+                    seatContent = `<div class="seat-number">${row}-${col}</div><div class="seat-name">${booking.student_name}</div><div class="seat-grade">${booking.student_class}</div>`;
                 }
                 
                 html += `<div class="seat ${seatClass}" title="${booking ? `Seat ${row}-${col}: ${booking.student_name} (${booking.student_class})` : `Seat ${row}-${col}: Available`}">${seatContent}</div>`;
             }
+            
+            // Aisle
+            html += '<div class="aisle"></div>';
+            
+            // Right side (3 seats)
+            for (let col = 4; col <= 6; col++) {
+                const booking = bookings.find(b => b.seat_index === row && b.seat_pos === col);
+                let seatClass = 'empty';
+                let seatContent = `<div class="seat-number">${row}-${col}</div>`;
+                
+                if (booking) {
+                    seatClass = booking.student_class === 'Grade 7' ? 'grade7' : 'grade8';
+                    seatContent = `<div class="seat-number">${row}-${col}</div><div class="seat-name">${booking.student_name}</div><div class="seat-grade">${booking.student_class}</div>`;
+                }
+                
+                html += `<div class="seat ${seatClass}" title="${booking ? `Seat ${row}-${col}: ${booking.student_name} (${booking.student_class})` : `Seat ${row}-${col}: Available`}">${seatContent}</div>`;
+            }
+            
+            html += '</div>';
             html += '</div>';
         }
         
+        html += '</div>';
+        html += '<div class="legend" style="margin-top: 30px; padding: 20px; background: #1e293b; border-radius: 8px;">';
+        html += '<h3 style="margin-bottom: 15px; color: #60a5fa;">Legend</h3>';
+        html += '<div style="display: flex; gap: 20px; flex-wrap: wrap;">';
+        html += '<div style="display: flex; align-items: center; gap: 10px;"><div class="seat empty" style="width: 40px; height: 40px; cursor: default;"></div><span>Available</span></div>';
+        html += '<div style="display: flex; align-items: center; gap: 10px;"><div class="seat grade7" style="width: 40px; height: 40px; cursor: default;"></div><span>Grade 7</span></div>';
+        html += '<div style="display: flex; align-items: center; gap: 10px;"><div class="seat grade8" style="width: 40px; height: 40px; cursor: default;"></div><span>Grade 8</span></div>';
+        html += '</div>';
         html += '</div>';
         
         // Add booking details table
@@ -566,6 +599,7 @@ async function loadExamLayout(slotId) {
             html += '</tbody></table></div></div>';
         }
         
+        html += '</div>';
         container.innerHTML = html;
     } catch (err) {
         console.error('Exam layout load error:', err);
