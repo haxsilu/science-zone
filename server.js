@@ -126,12 +126,12 @@ if (!slotsExist) {
   db.prepare(`
     INSERT INTO exam_slots (label, start_time, end_time, max_seats) 
     VALUES (?, ?, ?, ?)
-  `).run('Session 1', '2024-12-05T14:00:00', '2024-12-05T17:00:00', 12);
+  `).run('Session 1', '2024-12-05T14:00:00', '2024-12-05T17:00:00', 14);
   
   db.prepare(`
     INSERT INTO exam_slots (label, start_time, end_time, max_seats) 
     VALUES (?, ?, ?, ?)
-  `).run('Session 2', '2024-12-05T17:30:00', '2024-12-05T20:30:00', 12);
+  `).run('Session 2', '2024-12-05T17:30:00', '2024-12-05T20:30:00', 14);
 }
 
 // Middleware: Check authentication
@@ -564,8 +564,12 @@ app.post('/api/exam/book', requireStudent, (req, res) => {
     return res.status(403).json({ error: 'Only Grade 7 and Grade 8 students can book seats' });
   }
   
-  // Validate seat position (1-6 rows, 1-2 columns)
-  if (seat_index < 1 || seat_index > 6 || seat_pos < 1 || seat_pos > 2) {
+  // Validate seat position (1-6 rows, row 1 has 1-4 columns, rows 2-6 have 1-2 columns)
+  if (seat_index < 1 || seat_index > 6) {
+    return res.status(400).json({ error: 'Invalid seat row' });
+  }
+  const maxCols = seat_index === 1 ? 4 : 2;
+  if (seat_pos < 1 || seat_pos > maxCols) {
     return res.status(400).json({ error: 'Invalid seat position' });
   }
   
@@ -600,19 +604,42 @@ app.post('/api/exam/book', requireStudent, (req, res) => {
   // Check adjacent seats
   const adjacentSeats = [];
   
-  // Horizontal neighbors (same row, adjacent columns) - only 2 columns now
-  if (seat_pos === 1) {
-    adjacentSeats.push({ row: seat_index, col: 2 }); // Right
-  } else if (seat_pos === 2) {
-    adjacentSeats.push({ row: seat_index, col: 1 }); // Left
+  // Horizontal neighbors (same row, adjacent columns)
+  const maxCols = seat_index === 1 ? 4 : 2;
+  if (seat_pos > 1) {
+    adjacentSeats.push({ row: seat_index, col: seat_pos - 1 }); // Left
+  }
+  if (seat_pos < maxCols) {
+    adjacentSeats.push({ row: seat_index, col: seat_pos + 1 }); // Right
   }
   
   // Vertical neighbors (same column, different row)
+  // Check row above
   if (seat_index > 1) {
-    adjacentSeats.push({ row: seat_index - 1, col: seat_pos }); // Above
+    // If we're in row 2-6, we can check row 1 (row 1 has columns 1-4, so columns 1-2 exist)
+    // If we're in row 1, we can check row 0 (doesn't exist, so skip)
+    if (seat_index === 1) {
+      // Row 1: no row above
+    } else {
+      // Row 2-6: check row above (seat_pos 1-2 exist in row 1)
+      if (seat_pos <= 2) {
+        adjacentSeats.push({ row: seat_index - 1, col: seat_pos }); // Above
+      }
+    }
   }
+  // Check row below
   if (seat_index < 6) {
-    adjacentSeats.push({ row: seat_index + 1, col: seat_pos }); // Below
+    // If we're in row 1, row 2 below only has columns 1-2
+    // If we're in row 2-5, row below has same structure (2 columns)
+    if (seat_index === 1) {
+      // Row 1: check row 2 below (only columns 1-2 exist in row 2)
+      if (seat_pos <= 2) {
+        adjacentSeats.push({ row: seat_index + 1, col: seat_pos }); // Below
+      }
+    } else {
+      // Row 2-5: check row below (same column structure, 2 columns)
+      adjacentSeats.push({ row: seat_index + 1, col: seat_pos }); // Below
+    }
   }
   
   // Check if any adjacent seat has the same grade

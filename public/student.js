@@ -66,14 +66,15 @@ async function loadSessionLayout() {
         html += '<div class="front-indicator">Front</div>';
         html += '<div class="seat-layout">';
         
-        // 6 rows, 2 columns layout (12 seats total)
+        // Row 1 has 4 seats, rows 2-6 have 2 seats each (14 seats total)
         for (let row = 1; row <= 6; row++) {
             html += '<div class="seat-row">';
             html += `<div class="row-label">Row ${row}</div>`;
             html += '<div class="seats-group">';
             
-            // 2 columns side by side
-            for (let col = 1; col <= 2; col++) {
+            // Row 1 has 4 columns, other rows have 2 columns
+            const numCols = row === 1 ? 4 : 2;
+            for (let col = 1; col <= numCols; col++) {
                 const booking = bookings.find(b => b.seat_index === row && b.seat_pos === col);
                 let seatClass = 'empty';
                 let isOwn = false;
